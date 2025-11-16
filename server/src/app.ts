@@ -3,6 +3,7 @@ import express, { NextFunction, Request, Response } from 'express'
 import path from 'path'
 import cookieParser from 'cookie-parser'
 import logger from 'morgan'
+import authRouter from './routes/auth'
 
 const app = express()
 
@@ -14,6 +15,8 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 app.use(cookieParser())
 app.use(express.static(path.resolve(__dirname, '../public')))
+
+app.use('/api/auth', authRouter)
 
 app.get('/', (_req, res) => {
   res.json({ ok: true })

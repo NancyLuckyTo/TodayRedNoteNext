@@ -15,6 +15,7 @@
     "express": "~4.16.1",
     "http-errors": "~1.6.3",
     "jade": "~1.11.0",
+    "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.19.4",
     "morgan": "~1.9.1"
   },
@@ -24,6 +25,7 @@
     "@types/debug": "^4.1.12",
     "@types/express": "^5.0.5",
     "@types/http-errors": "^2.0.5",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
     "@types/node": "^24.10.1",
     "ts-node": "^10.9.2",
