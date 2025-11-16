@@ -71,7 +71,7 @@ router.post('/login', async (req, res, next) => {
   }
 })
 
-router.get('/me', auth, async (req: AuthRequest, res, next) => {
+router.get('/profile', auth, async (req: AuthRequest, res, next) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ message: 'Unauthorized' })
