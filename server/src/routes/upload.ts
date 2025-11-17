@@ -42,4 +42,45 @@ router.post('/request-url', auth, async (req: AuthRequest, res, next) => {
   }
 })
 
+// 批量申请直传 URL（一次最多 18 个）
+router.post('/request-urls', auth, async (req: AuthRequest, res, next) => {
+  try {
+    const files = Array.isArray(req.body?.files) ? req.body.files : []
+    if (!files.length) {
+      return res.status(400).json({ message: 'files is required' })
+    }
+    if (files.length > 18) {
+      return res.status(400).json({ message: 'Max 18 files' })
+    }
+
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' })
+
+    const client = getOssClient()
+    const expires = 300 // seconds
+    const region = process.env.ALI_OSS_REGION as string
+    const bucket = process.env.ALI_OSS_BUCKET as string
+
+    const results = files.map((f: any) => {
+      const filename = String(f?.filename || '')
+      const contentType = String(f?.contentType || '')
+      if (!filename || !contentType)
+        throw new Error('filename and contentType are required for each file')
+      const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const objectName = `${userId}/${uuidv4()}_${safeName}`
+      const uploadUrl = client.signatureUrl(objectName, {
+        method: 'PUT',
+        expires,
+        'Content-Type': contentType,
+      })
+      const publicUrl = `https://${bucket}.${region}.aliyuncs.com/${objectName}`
+      return { uploadUrl, publicUrl, objectName, expires }
+    })
+
+    return res.json({ items: results, expires })
+  } catch (err) {
+    next(err)
+  }
+})
+
 export default router

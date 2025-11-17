@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { X, ImagePlus } from 'lucide-react'
+import { X, Plus } from 'lucide-react'
 import axios from 'axios'
 import api from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -27,11 +27,19 @@ const postSchema = z.object({
 
 type PostFormData = z.infer<typeof postSchema>
 
+type SelectedImage = {
+  file: File
+  previewUrl: string
+  width: number
+  height: number
+}
+
 const CreatePostPage = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [coverImage, setCoverImage] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string>('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [images, setImages] = useState<SelectedImage[]>([])
 
   const form = useForm<PostFormData>({
     resolver: zodResolver(postSchema), // 校验
@@ -44,34 +52,46 @@ const CreatePostPage = () => {
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (data: PostFormData) => {
-      let coverImageUrl = ''
-
-      if (coverImage) {
+      // 批量上传已选择的图片
+      let uploadedImages: { url: string; width: number; height: number }[] = []
+      if (images.length > 0) {
         try {
-          // 向后端申请“通行证”
-          const requestUrlRes = await api.post('/upload/request-url', {
-            filename: coverImage.name,
-            contentType: coverImage.type,
-          })
+          // 元数据用于后端签名
+          const reqBody = {
+            files: images.map(img => ({
+              filename: img.file.name,
+              contentType: img.file.type,
+            })),
+          }
+          // 申请上传授权
+          const batch = await api.post('/upload/request-urls', reqBody)
+          // items 包含两个字段：
+          // uploadUrl: 带签名的临时地址，用于 PUT 上传文件
+          // publicUrl: 上传成功后，最终可以直接访问的图片地址
+          const items: { uploadUrl: string; publicUrl: string }[] =
+            batch.data.items
 
-          const { uploadUrl, publicUrl } = requestUrlRes.data
+          // 使用 Promise.all 并行上传所有图片
+          await Promise.all(
+            items.map((it, idx) =>
+              axios.put(it.uploadUrl, images[idx].file, {
+                headers: { 'Content-Type': images[idx].file.type },
+              })
+            )
+          )
 
-          // 前端直传 OSS
-          await axios.put(uploadUrl, coverImage, {
-            headers: {
-              'Content-Type': coverImage.type,
-            },
-          })
-
-          coverImageUrl = publicUrl
+          // 构建已上传图片的元数据
+          uploadedImages = items.map((it, idx) => ({
+            url: it.publicUrl,
+            width: images[idx].width,
+            height: images[idx].height,
+          }))
         } catch (error) {
-          if (
-            error &&
-            typeof error === 'object' &&
-            'config' in error &&
-            error.config?.url?.includes('/upload/request-url')
-          ) {
-            throw new Error('获取上传授权失败')
+          if (axios.isAxiosError(error)) {
+            const url = error.config?.url || ''
+            if (/\/upload\/request-url(s)?/.test(String(url))) {
+              throw new Error('获取上传授权失败')
+            }
           }
           throw new Error('上传文件失败，请检查网络或重试')
         }
@@ -88,7 +108,7 @@ const CreatePostPage = () => {
       // 创建帖子，将清洗后的数据发给后端
       const postRes = await api.post('/posts', {
         body: data.body,
-        coverImage: coverImageUrl || undefined,
+        images: uploadedImages,
         tags: tagsArray,
       })
 
@@ -98,7 +118,9 @@ const CreatePostPage = () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] })
       toast.success('发布成功！')
       form.reset()
-      removeImage()
+      // 清理预览与状态
+      images.forEach(img => URL.revokeObjectURL(img.previewUrl))
+      setImages([])
       navigate('/')
     },
     onError: error => {
@@ -109,46 +131,69 @@ const CreatePostPage = () => {
     },
   })
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        toast.error('请选择要发表的图片')
-        return
-      }
+  const onFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // 将 FileList 类数组转换为真正的数组，方便使用 map/slice 等方法
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
 
-      const allowedTypes = [
-        'image/jpeg',
-        'image/jpg',
-        'image/png',
-        'image/webp',
-      ]
+    // 计算还能添加几张
+    const remain = 18 - images.length
+    if (files.length > remain) {
+      toast.error(`最多还能选择 ${remain} 张（总共最多 18 张）`)
+    }
+    const take = files.slice(0, remain)
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+
+    const toAdd: SelectedImage[] = []
+    for (const file of take) {
       if (!allowedTypes.includes(file.type)) {
         toast.error('仅支持 JPG、PNG 或 WEBP 格式')
-        return
+        continue
       }
-
       if (file.size > 5 * 1024 * 1024) {
         toast.error('图片大小不能超过 5MB')
-        return
+        continue
       }
+      // 生成本地预览地址
+      const previewUrl = URL.createObjectURL(file)
+      // 异步读取图片尺寸
+      const dims = await new Promise<{ width: number; height: number }>(
+        resolve => {
+          const img = new Image()
+          // 图片加载成功，返回宽高
+          img.onload = () =>
+            resolve({ width: img.naturalWidth, height: img.naturalHeight })
+          // 图片加载失败，返回 0 x 0
+          img.onerror = () => resolve({ width: 0, height: 0 })
+          img.src = previewUrl
+        }
+      )
 
-      // 释放旧的预览图内存（如果有）
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl)
-      }
-
-      setCoverImage(file)
-      setPreviewUrl(URL.createObjectURL(file)) // 生成新预览图
+      // 将文件对象、预览地址、宽高合并存入待添加数组
+      toAdd.push({ file, previewUrl, ...dims })
     }
+
+    // 更新 State，将新图片追加到旧图片列表后面
+    if (toAdd.length) setImages(prev => [...prev, ...toAdd])
+    // 重置 input 以便下次可选择同一文件
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const removeImage = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl)
-    }
-    setCoverImage(null)
-    setPreviewUrl('')
+  const removeImageAt = (index: number) => {
+    setImages(prev => {
+      const copy = [...prev] // 浅拷贝数组，遵循 React 不可变性原则
+      const [removed] = copy.splice(index, 1) // 移除指定索引的图片
+      // createObjectURL 会占用内存，删除图片时必须手动 revoke 释放
+      if (removed) URL.revokeObjectURL(removed.previewUrl)
+      return copy
+    })
+  }
+
+  const triggerAdd = () => {
+    // 防止在上传过程中（isPending 为 true）用户再次添加图片造成混乱
+    if (isPending) return
+    fileInputRef.current?.click()
   }
 
   const onSubmit = (data: PostFormData) => {
@@ -206,7 +251,7 @@ const CreatePostPage = () => {
                   <FormControl>
                     <Textarea
                       placeholder="分享你的想法"
-                      className="min-h-[200px] resize-none"
+                      className="min-h-[150px] resize-none"
                       {...field}
                       disabled={isPending}
                     />
@@ -216,40 +261,53 @@ const CreatePostPage = () => {
               )}
             />
 
-            {/* 图片上传 */}
-            <div className="space-y-2">
-              {previewUrl ? (
-                <div className="relative">
-                  <img
-                    src={previewUrl}
-                    alt="Preview"
-                    className="w-full h-48 object-cover rounded-lg"
-                  />
+            {/* 图片上传：0~18 张 */}
+            <div className="space-y-3">
+              {/* 隐藏的多选文件输入 */}
+              <Input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                onChange={onFilesSelected}
+                className="hidden"
+                disabled={isPending}
+              />
+
+              <div className="grid grid-cols-3 gap-2">
+                {/* 遍历渲染所有图片 */}
+                {images.map((img, idx) => (
+                  <div
+                    key={idx}
+                    className="relative w-full aspect-square overflow-hidden rounded-md"
+                  >
+                    <img
+                      src={img.previewUrl}
+                      alt={`选中图片${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImageAt(idx)}
+                      disabled={isPending}
+                      className="absolute top-1 right-1 bg-black/20 text-white rounded-full p-1"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+
+                {images.length < 18 && (
                   <button
                     type="button"
-                    onClick={removeImage}
+                    onClick={triggerAdd}
                     disabled={isPending}
-                    className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 hover:bg-black/70 transition-colors disabled:opacity-50"
+                    className="w-full aspect-square bg-gray-100 rounded-md flex items-center justify-center"
                   >
-                    <X className="w-4 h-4" />
+                    <Plus className="w-12 h-12 text-gray-300" />
                   </button>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors">
-                  <ImagePlus className="w-12 h-12 text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-500">点击上传封面图</span>
-                  <span className="text-xs text-gray-400 mt-1">
-                    支持 JPG/PNG/WEBP，最大 5MB
-                  </span>
-                  <Input
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                    onChange={handleImageChange}
-                    className="hidden"
-                    disabled={isPending}
-                  />
-                </label>
-              )}
+                )}
+              </div>
             </div>
 
             {/* 标签 */}

@@ -10,7 +10,7 @@ const router = Router()
 router.post('/', auth, async (req: AuthRequest, res, next) => {
   try {
     // 获取输入
-    const { body, coverImage, tags } = req.body ?? {}
+    const { body, images, tags } = req.body ?? {}
 
     // 验证输入
     if (!body || !String(body).trim()) {
@@ -28,8 +28,25 @@ router.post('/', auth, async (req: AuthRequest, res, next) => {
     }
 
     // 处理可选字段
-    if (coverImage) payload.coverImage = String(coverImage)
     if (Array.isArray(tags)) payload.tags = tags.map((t: any) => String(t))
+    if (Array.isArray(images)) {
+      if (images.length > 18) {
+        return res.status(400).json({ message: 'Max 18 images' })
+      }
+      payload.images = images
+        .filter((img: any) => img && typeof img.url === 'string' && img.url)
+        .map((img: any) => ({
+          url: String(img.url),
+          width:
+            typeof img.width === 'number' && Number.isFinite(img.width)
+              ? img.width
+              : undefined,
+          height:
+            typeof img.height === 'number' && Number.isFinite(img.height)
+              ? img.height
+              : undefined,
+        }))
+    }
 
     // 创建帖子
     const post = await Post.create(payload)
@@ -61,11 +78,28 @@ router.put('/:id', auth, async (req: AuthRequest, res, next) => {
       return res.status(403).json({ message: 'Forbidden' })
     }
 
-    const { body, coverImage, tags } = req.body ?? {}
+    const { body, images, tags } = req.body ?? {}
     const update: any = {}
     if (typeof body === 'string') update.body = body.trim()
-    if (typeof coverImage === 'string') update.coverImage = coverImage
     if (Array.isArray(tags)) update.tags = tags.map((t: any) => String(t))
+    if (Array.isArray(images)) {
+      if (images.length > 18) {
+        return res.status(400).json({ message: 'Max 18 images' })
+      }
+      update.images = images
+        .filter((img: any) => img && typeof img.url === 'string' && img.url)
+        .map((img: any) => ({
+          url: String(img.url),
+          width:
+            typeof img.width === 'number' && Number.isFinite(img.width)
+              ? img.width
+              : undefined,
+          height:
+            typeof img.height === 'number' && Number.isFinite(img.height)
+              ? img.height
+              : undefined,
+        }))
+    }
 
     const post = await Post.findByIdAndUpdate(id, update, { new: true })
     return res.json({ post })
@@ -81,29 +115,39 @@ router.delete('/:id', auth, async (req: AuthRequest, res, next) => {
     const { id } = req.params
     const found = await Post.findById(id)
     if (!found) return res.status(404).json({ message: 'Not found' })
+    // 比较帖子的作者 ID 和 当前发起请求的用户 ID
     if (!req.userId || found.author.toString() !== req.userId) {
       return res.status(403).json({ message: 'Forbidden' })
     }
 
-    // 在删除前保存图片 URL
-    const cover = found.coverImage
-    // 从 MongoDB 数据库中删除帖子
-    await Post.findByIdAndDelete(id)
+    const images = Array.isArray(found.images) ? found.images : []
+    // 只有当帖子包含图片时才执行清理逻辑
+    if (images.length) {
+      const bucket = process.env.ALI_OSS_BUCKET
+      const region = process.env.ALI_OSS_REGION
+      const objectKeys = images
+        .map(img => {
+          try {
+            const parsed = new URL(String(img.url))
+            return parsed.pathname.replace(/^\/+/, '')
+          } catch {
+            return null
+          }
+        })
+        .filter((key): key is string => Boolean(key))
 
-    if (cover) {
-      try {
+      if (objectKeys.length) {
         const client = getOssClient()
-        let objectName = ''
-        try {
-          const u = new URL(cover)
-          objectName = u.pathname.replace(/^\//, '')
-        } catch {
-          objectName = cover.replace(/^https?:\/\/.+?\//, '')
+        if (objectKeys.length === 1) {
+          await client.delete(objectKeys[0])
+        } else {
+          await client.deleteMulti(objectKeys, { quiet: true })
         }
-        void client.delete(objectName).catch(() => undefined)
-      } catch {}
+      }
     }
 
+    // 把这条帖子记录从 MongoDB 中彻底删除
+    await found.deleteOne()
     return res.status(204).end()
   } catch (err) {
     next(err)
