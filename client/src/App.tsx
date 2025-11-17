@@ -7,6 +7,7 @@ import ProfilePage from './pages/ProfilePage'
 import LoginPage from './pages/LoginPage'
 import PrivateRoute from './components/PrivateRoute'
 import { useAuthStore } from './store/auth'
+import { Toaster } from '@/components/ui/sonner'
 
 function App() {
   const initialize = useAuthStore(s => s.initialize)
@@ -31,6 +32,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
         </Routes>
         <BottomNav />
+        <Toaster richColors />
       </div>
     </Router>
   )
