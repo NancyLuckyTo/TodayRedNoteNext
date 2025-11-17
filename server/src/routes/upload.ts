@@ -29,8 +29,8 @@ router.post('/request-url', auth, async (req: AuthRequest, res, next) => {
     const uploadUrl = client.signatureUrl(objectName, {
       method: 'PUT',
       expires,
-      headers: { 'Content-Type': String(contentType) },
-    } as any)
+      'Content-Type': String(contentType),
+    })
 
     const region = process.env.ALI_OSS_REGION as string
     const bucket = process.env.ALI_OSS_BUCKET as string
