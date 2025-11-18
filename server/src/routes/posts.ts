@@ -6,9 +6,43 @@ import getOssClient from '../services/storageService'
 import type { ImageRatioType } from '@TRN/types'
 import { IMAGE_RATIO } from '@TRN/types'
 
+const RATIO_THRESHOLD = {
+  // 宽高比大于 1.2 视为横图
+  LANDSCAPE_MIN: 1.2,
+  // 宽高比小于 0.8 视为竖图
+  PORTRAIT_MAX: 0.8,
+} as const
+
 const router = Router()
 
-// 创建帖子（需要登录）
+// 计算图片比例类型
+const calculateRatioType = (image: {
+  width: number
+  height: number
+}): ImageRatioType => {
+  if (image.width === 0 || image.height === 0) return IMAGE_RATIO.NONE
+  const ratio = image.width / image.height
+  if (ratio > RATIO_THRESHOLD.LANDSCAPE_MIN) return IMAGE_RATIO.LANDSCAPE
+  if (ratio < RATIO_THRESHOLD.PORTRAIT_MAX) return IMAGE_RATIO.PORTRAIT
+  return IMAGE_RATIO.SQUARE
+}
+
+const normalizeImages = (images: any[]) =>
+  images
+    .filter((img: any) => img && typeof img.url === 'string' && img.url)
+    .map((img: any) => ({
+      url: String(img.url),
+      width:
+        typeof img.width === 'number' && Number.isFinite(img.width)
+          ? img.width
+          : 0,
+      height:
+        typeof img.height === 'number' && Number.isFinite(img.height)
+          ? img.height
+          : 0,
+    }))
+
+// 发布笔记
 router.post('/', auth, async (req: AuthRequest, res, next) => {
   try {
     // 获取输入
@@ -31,26 +65,22 @@ router.post('/', auth, async (req: AuthRequest, res, next) => {
 
     // 处理可选字段
     if (Array.isArray(tags)) payload.tags = tags.map((t: any) => String(t))
+
     if (Array.isArray(images)) {
       if (images.length > 18) {
         return res.status(400).json({ message: 'Max 18 images' })
       }
-      payload.images = images
-        .filter((img: any) => img && typeof img.url === 'string' && img.url)
-        .map((img: any) => ({
-          url: String(img.url),
-          width:
-            typeof img.width === 'number' && Number.isFinite(img.width)
-              ? img.width
-              : undefined,
-          height:
-            typeof img.height === 'number' && Number.isFinite(img.height)
-              ? img.height
-              : undefined,
-        }))
+
+      const validImages = normalizeImages(images)
+
+      if (validImages.length > 0) {
+        payload.coverRatio = calculateRatioType(validImages[0])
+      }
+
+      payload.images = validImages
     }
 
-    // 创建帖子
+    // 创建笔记
     const post = await Post.create(payload)
     return res.status(201).json({ post })
   } catch (err) {
@@ -58,7 +88,7 @@ router.post('/', auth, async (req: AuthRequest, res, next) => {
   }
 })
 
-// 获取帖子详情（联表作者信息）
+// 获取笔记详情，联表作者信息
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params
@@ -70,7 +100,7 @@ router.get('/:id', async (req, res, next) => {
   }
 })
 
-// 更新帖子
+// 更新笔记
 router.put('/:id', auth, async (req: AuthRequest, res, next) => {
   try {
     const { id } = req.params
@@ -88,19 +118,16 @@ router.put('/:id', auth, async (req: AuthRequest, res, next) => {
       if (images.length > 18) {
         return res.status(400).json({ message: 'Max 18 images' })
       }
-      update.images = images
-        .filter((img: any) => img && typeof img.url === 'string' && img.url)
-        .map((img: any) => ({
-          url: String(img.url),
-          width:
-            typeof img.width === 'number' && Number.isFinite(img.width)
-              ? img.width
-              : undefined,
-          height:
-            typeof img.height === 'number' && Number.isFinite(img.height)
-              ? img.height
-              : undefined,
-        }))
+
+      const validImages = normalizeImages(images)
+
+      if (validImages.length > 0) {
+        update.coverRatio = calculateRatioType(validImages[0])
+      } else {
+        update.coverRatio = IMAGE_RATIO.NONE
+      }
+
+      update.images = validImages
     }
 
     const post = await Post.findByIdAndUpdate(id, update, { new: true })
@@ -110,7 +137,7 @@ router.put('/:id', auth, async (req: AuthRequest, res, next) => {
   }
 })
 
-// 删除帖子
+// 删除笔记
 router.delete('/:id', auth, async (req: AuthRequest, res, next) => {
   try {
     // 查找与授权
@@ -148,7 +175,7 @@ router.delete('/:id', auth, async (req: AuthRequest, res, next) => {
       }
     }
 
-    // 把这条帖子记录从 MongoDB 中彻底删除
+    // 把这条笔记记录从 MongoDB 中彻底删除
     await found.deleteOne()
     return res.status(204).end()
   } catch (err) {
@@ -156,7 +183,7 @@ router.delete('/:id', auth, async (req: AuthRequest, res, next) => {
   }
 })
 
-// 获取帖子列表
+// 获取笔记列表
 router.get('/', async (req, res, next) => {
   try {
     // 限制最多一次获取 50 条
@@ -205,28 +232,12 @@ router.get('/', async (req, res, next) => {
       posts.pop()
     }
 
-    // 计算封面图的 ratioType
     const formattedPosts = posts.map((post: any) => {
-      let ratioType: ImageRatioType = IMAGE_RATIO.SQUARE
       const hasImages = Array.isArray(post.images) && post.images.length > 0
-
-      if (hasImages) {
-        const firstImage = post.images[0]
-        if (
-          typeof firstImage.width === 'number' &&
-          typeof firstImage.height === 'number' &&
-          firstImage.height !== 0
-        ) {
-          const ratio = firstImage.width / firstImage.height
-          if (ratio > 1.2) ratioType = IMAGE_RATIO.LANDSCAPE
-          else if (ratio < 0.8) ratioType = IMAGE_RATIO.PORTRAIT
-          else ratioType = IMAGE_RATIO.SQUARE
-        }
-      }
 
       return {
         ...post,
-        ratioType,
+        coverRatio: post.coverRatio,
         isTextOnly: !hasImages,
       }
     })

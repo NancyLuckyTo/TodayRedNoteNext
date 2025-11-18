@@ -4,6 +4,7 @@ export interface IPost extends Document {
   author: Types.ObjectId // 作者 ID
   body: string
   images: { url: string; width: number; height: number }[] // 多图支持，最多18张
+  coverRatio: string
   tags: string[] // 标签列表
   createdAt: Date
   updatedAt: Date
@@ -27,6 +28,7 @@ const PostSchema: Schema<IPost> = new Schema<IPost>(
       default: [],
       maxLength: 18,
     },
+    coverRatio: { type: String },
     tags: { type: [String], index: true, default: [] },
   },
   { timestamps: true }
