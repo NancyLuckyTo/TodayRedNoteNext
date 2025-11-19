@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import { URL } from 'url'
-import auth, { AuthRequest } from '../middleware/auth'
-import Post from '../models/postModel'
-import getOssClient from '../services/storageService'
+import auth, { AuthRequest } from '../middleware/auth.js'
+import Post from '../models/postModel.js'
+import getOssClient from '../services/storageService.js'
 import type { ImageRatioType } from '@TRN/types'
 import { IMAGE_RATIO } from '@TRN/types'
 

@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { v4 as uuidv4 } from 'uuid'
-import auth, { AuthRequest } from '../middleware/auth'
-import getOssClient from '../services/storageService'
+import auth, { AuthRequest } from '../middleware/auth.js'
+import getOssClient from '../services/storageService.js'
 
 const router = Router()
 

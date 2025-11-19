@@ -1,10 +1,6 @@
-const IMAGE_RATIO = {
-  DEFAULT: 'default',
+export const IMAGE_RATIO = {
   LANDSCAPE: 'landscape',
   PORTRAIT: 'portrait',
   SQUARE: 'square',
-}
-
-module.exports = {
-  IMAGE_RATIO,
+  NONE: 'none',
 }

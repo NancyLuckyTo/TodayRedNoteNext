@@ -1,11 +1,16 @@
+import { fileURLToPath } from 'url'
+import { dirname } from 'path'
 import createError from 'http-errors'
 import express, { NextFunction, Request, Response } from 'express'
 import path from 'path'
 import cookieParser from 'cookie-parser'
 import logger from 'morgan'
-import authRouter from './routes/auth'
-import uploadRouter from './routes/upload'
-import postsRouter from './routes/posts'
+import authRouter from './routes/auth.js'
+import uploadRouter from './routes/upload.js'
+import postsRouter from './routes/posts.js'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 const app = express()
 

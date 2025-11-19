@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import jwt from 'jsonwebtoken'
-import User from '../models/userModel'
-import auth, { AuthRequest } from '../middleware/auth'
+import User from '../models/userModel.js'
+import auth, { AuthRequest } from '../middleware/auth.js'
 
 const router = Router()
 

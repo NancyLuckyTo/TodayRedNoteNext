@@ -1,8 +1,8 @@
 import 'dotenv/config'
 import http from 'http'
 import debugFactory from 'debug'
-import app from '../app'
-import connectDB from '../models/connection'
+import app from '../app.js'
+import connectDB from '../models/connection.js'
 
 const debug = debugFactory('server:server')
 
