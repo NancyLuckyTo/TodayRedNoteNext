@@ -6,7 +6,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { normalizePost } from '@/lib/post-utils'
-import type { IPost } from '@TRN/types'
+import type { IPost } from '@today-red-note/types'
 import { PostDetailItem } from '@/components/PostDetailItem'
 
 const ROOT_MARGIN_VALUE = '250px'

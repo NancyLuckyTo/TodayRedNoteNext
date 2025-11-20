@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { WaterfallContainer } from '../components/WaterfallContainer'
 import { PostCard } from '../components/PostCard'
 import api from '@/lib/api'
-import type { IPost } from '@TRN/types'
+import type { IPost } from '@today-red-note/types'
 import { calculatePostHeight, normalizePost } from '@/lib/post-utils'
 import { Spinner } from '@/components/ui/spinner'
 

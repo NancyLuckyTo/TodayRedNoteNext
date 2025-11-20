@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,scss,md}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
+    "dev": "pnpm -r --parallel --stream --filter @today-red-note/types --filter server run dev"
   },
   "keywords": [],
   "author": "",

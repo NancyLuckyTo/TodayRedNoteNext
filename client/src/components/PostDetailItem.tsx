@@ -1,7 +1,7 @@
 import { Share, MessageSquare, Heart, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import defaultAvatar from '@/assets/images/avatar.png'
-import type { IPost } from '@TRN/types'
+import type { IPost } from '@today-red-note/types'
 
 interface PostDetailItemProps {
   post: IPost

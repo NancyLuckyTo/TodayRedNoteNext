@@ -1,7 +1,7 @@
 import { Card } from './ui/card'
 import { Heart } from 'lucide-react'
-import { IMAGE_RATIO } from '@TRN/types'
-import type { IPost } from '@TRN/types'
+import { IMAGE_RATIO } from '@today-red-note/types'
+import type { IPost } from '@today-red-note/types'
 import defaultAvatar from '@/assets/images/avatar.png'
 import { getAspectRatio } from '@/lib/post-utils'
 

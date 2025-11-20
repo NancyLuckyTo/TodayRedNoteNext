@@ -3,8 +3,8 @@ import { URL } from 'url'
 import auth, { AuthRequest } from '../middleware/auth.js'
 import Post from '../models/postModel.js'
 import getOssClient from '../services/storageService.js'
-import type { ImageRatioType } from '@TRN/types'
-import { IMAGE_RATIO } from '@TRN/types'
+import type { ImageRatio } from '@today-red-note/types'
+import { IMAGE_RATIO } from '@today-red-note/types'
 
 const RATIO_THRESHOLD = {
   // 宽高比大于 1.2 视为横图
@@ -19,7 +19,7 @@ const router = Router()
 const calculateRatioType = (image: {
   width: number
   height: number
-}): ImageRatioType => {
+}): ImageRatio => {
   if (image.width === 0 || image.height === 0) return IMAGE_RATIO.NONE
   const ratio = image.width / image.height
   if (ratio > RATIO_THRESHOLD.LANDSCAPE_MIN) return IMAGE_RATIO.LANDSCAPE

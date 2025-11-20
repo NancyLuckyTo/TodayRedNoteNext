@@ -9,7 +9,7 @@
     "start": "node dist/bin/www.js"
   },
   "dependencies": {
-    "@TRN/types": "workspace:*",
+    "@today-red-note/types": "workspace:*",
     "ali-oss": "^6.23.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "~1.4.4",

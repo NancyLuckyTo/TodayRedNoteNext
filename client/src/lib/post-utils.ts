@@ -1,8 +1,8 @@
-import { IMAGE_RATIO } from '@TRN/types'
-import type { IPost, ImageRatioType } from '@TRN/types'
+import { IMAGE_RATIO } from '@today-red-note/types'
+import type { IPost, ImageRatio } from '@today-red-note/types'
 
 const IMAGE_RATIO_META: Record<
-  ImageRatioType,
+  ImageRatio,
   { aspectRatio: string; heightRatio: number }
 > = {
   landscape: { aspectRatio: '4 / 3', heightRatio: 3 / 4 },
@@ -46,7 +46,7 @@ export const calculatePostHeight = (post: IPost, columnWidth: number) => {
  * @param coverRatio 封面图比例
  * @returns CSS aspect-ratio 值
  */
-export function getAspectRatio(coverRatio: ImageRatioType) {
+export function getAspectRatio(coverRatio: ImageRatio) {
   return IMAGE_RATIO_META[coverRatio]?.aspectRatio || '1 / 1'
 }
 

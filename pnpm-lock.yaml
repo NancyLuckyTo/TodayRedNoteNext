@@ -23,9 +23,6 @@ importers:
 
   client:
     dependencies:
-      '@TRN/types':
-        specifier: workspace:*
-        version: link:../packages/types
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.66.0(react@19.2.0))
@@ -44,6 +41,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.90.10
         version: 5.90.10(react@19.2.0)
+      '@today-red-note/types':
+        specifier: workspace:*
+        version: link:../packages/types
       axios:
         specifier: ^1.13.2
         version: 1.13.2
@@ -131,7 +131,7 @@ importers:
 
   server:
     dependencies:
-      '@TRN/types':
+      '@today-red-note/types':
         specifier: workspace:*
         version: link:../packages/types
       ali-oss:
