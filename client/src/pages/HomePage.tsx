@@ -6,6 +6,7 @@ import api from '@/lib/api'
 import type { IPost } from '@today-red-note/types'
 import { calculatePostHeight, normalizePost } from '@/lib/post-utils'
 import { Spinner } from '@/components/ui/spinner'
+import { useHomeStore } from '@/store/homeStore'
 
 type BackendPostsResponse = {
   posts: IPost[]
@@ -21,9 +22,16 @@ const ROOT_MARGIN_VALUE = '500px'
 const PRIORITY_LIMIT = 6
 
 const HomePage = () => {
-  const [posts, setPosts] = useState<IPost[]>([]) // 笔记列表
-  const [nextCursor, setNextCursor] = useState<string | null>(null) // 分页游标
-  const [hasNextPage, setHasNextPage] = useState(false) // 是否还有下一页
+  const {
+    posts,
+    nextCursor,
+    hasNextPage,
+    scrollPosition,
+    setPosts,
+    setPagination,
+    setScrollPosition,
+  } = useHomeStore()
+
   const [isInitialLoading, setIsInitialLoading] = useState(false) // 首次加载状态
   const [isLoadingMore, setIsLoadingMore] = useState(false) // 加载更多状态
   const [error, setError] = useState<string | null>(null)
@@ -61,21 +69,26 @@ const HomePage = () => {
         // 清洗数据
         const normalizedPosts = (data.posts ?? []).map(normalizePost)
 
-        setPosts(prev => {
-          // 如果不是追加模式，如下拉刷新，直接替换整个列表
-          if (!append) return normalizedPosts
-
-          // 获取现有列表中所有的 ID，存入 Set
-          const existingIds = new Set(prev.map(p => p._id))
-          // 过滤掉新数据中已存在的 ID
-          const newPosts = normalizedPosts.filter(p => !existingIds.has(p._id))
-          // 合并数据
-          return [...prev, ...newPosts]
-        })
+        if (!append) {
+          setPosts(normalizedPosts)
+        } else {
+          setPosts(prevPosts => {
+            // 获取现有列表中所有的 ID，存入 Set
+            const existingIds = new Set(prevPosts.map(p => p._id))
+            // 过滤掉新数据中已存在的 ID
+            const newPosts = normalizedPosts.filter(
+              p => !existingIds.has(p._id)
+            )
+            // 合并数据
+            return [...prevPosts, ...newPosts]
+          })
+        }
 
         // 更新分页信息
-        setNextCursor(data.pagination?.nextCursor ?? null)
-        setHasNextPage(Boolean(data.pagination?.hasNextPage))
+        setPagination(
+          data.pagination?.nextCursor ?? null,
+          Boolean(data.pagination?.hasNextPage)
+        )
       } catch (err) {
         console.error(err)
         setError(
@@ -90,13 +103,35 @@ const HomePage = () => {
         }
       }
     },
-    []
+    [setPagination, setPosts]
   )
 
   // 初始化，组件挂载时请求第一页数
   useEffect(() => {
-    fetchPosts()
-  }, [fetchPosts])
+    if (posts.length === 0) {
+      fetchPosts()
+    }
+  }, [fetchPosts, posts.length])
+
+  // 滚动容器 ref
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // 恢复滚动位置
+  useEffect(() => {
+    if (scrollContainerRef.current && scrollPosition > 0) {
+      scrollContainerRef.current.scrollTop = scrollPosition
+    }
+    // eslint-disable-next-line
+  }, [])
+
+  // 监听滚动保存位置
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLDivElement
+      setScrollPosition(target.scrollTop)
+    },
+    [setScrollPosition]
+  )
 
   const navigate = useNavigate()
 
@@ -158,7 +193,11 @@ const HomePage = () => {
       </div>
 
       {/* 可滚动的内容区域 */}
-      <div className="flex-1 overflow-y-auto pb-20">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto pb-20"
+        onScroll={handleScroll}
+      >
         {isInitialLoading && !posts.length ? (
           <div className="flex justify-center items-center py-10">
             <Spinner />
