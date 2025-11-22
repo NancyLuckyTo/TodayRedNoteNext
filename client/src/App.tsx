@@ -17,7 +17,9 @@ import { Toaster } from '@/components/ui/sonner'
 
 function Layout() {
   const location = useLocation()
-  const hideBottomNav = location.pathname.startsWith('/post/')
+  const hideBottomNav =
+    location.pathname.startsWith('/post/') ||
+    location.pathname === '/createPost'
 
   return (
     <div className="min-h-screen bg-gray-100">

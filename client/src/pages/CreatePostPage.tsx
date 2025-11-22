@@ -59,7 +59,7 @@ const CreatePostPage = () => {
         <Button
           type="button"
           variant="ghost"
-          onClick={() => navigate('/')}
+          onClick={() => navigate(-1)}
           disabled={isPending}
         >
           取消
