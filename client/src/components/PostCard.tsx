@@ -29,11 +29,6 @@ export function PostCard({ post, onClick, priority = false }: PostCardProps) {
   // 正文预览，使用 bodyPreview 字段，如果不存在则从 HTML 中提取
   const preview = hasBody ? bodyPreview || htmlToText(body) : ''
 
-  // 是否为纯文本帖子
-  const isTextOnly = !hasImages && hasBody
-  // 是否为短文本帖子
-  const isShortText = hasBody && preview.length < 50
-
   return (
     <Card className="overflow-hidden" onClick={onClick}>
       {/* 封面图 */}
@@ -56,14 +51,10 @@ export function PostCard({ post, onClick, priority = false }: PostCardProps) {
         </div>
       )}
 
-      {/* 正文 */}
+      {/* 正文预览 */}
       {hasBody && (
         <div className="px-3 py-2">
-          <p
-            className={`text-foreground line-clamp-2 ${
-              isTextOnly && isShortText ? 'text-lg font-medium' : 'text-sm'
-            }`}
-          >
+          <p className="text-foreground line-clamp-2 text-sm overflow-hidden wrap-break-word">
             {preview}
           </p>
         </div>
