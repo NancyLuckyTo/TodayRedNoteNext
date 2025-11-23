@@ -46,7 +46,7 @@ export function PostDetailItem({ post }: PostDetailItemProps) {
       </div>
 
       {/* 笔记正文，使用 TipTap 只读模式渲染富文本 */}
-      <div className="px-4 py-2">
+      <div className="px-4">
         <RichTextEditor
           content={body}
           onChange={() => {}}

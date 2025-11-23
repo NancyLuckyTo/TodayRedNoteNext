@@ -57,7 +57,7 @@ export const RichTextEditor = forwardRef<
       editorProps: {
         attributes: {
           class: cn(
-            'focus:outline-none min-h-[150px] px-3 py-2',
+            'focus:outline-none min-h-[150px] px-3',
             '[&_h1]:text-2xl [&_h1]:font-semibold [&_h1]:my-2',
             '[&_h2]:text-xl [&_h2]:font-semibold [&_h2]:my-2',
             '[&_p]:my-2',
