@@ -3,8 +3,9 @@ import Post from '../models/postModel.js'
 import getOssClient from '../services/storageService.js'
 import { processImageUrl, calculateRatioType } from '../utils/imageUtils.js'
 import { IMAGE_RATIO, IMAGE_QUALITY } from '@today-red-note/types'
-import { extractTopic } from '../services/aiService.js'
+import { extractTopic, extractTags } from '../services/aiService.js'
 import topicService from '../services/topicService.js'
+import tagService from '../services/tagService.js'
 import userProfileService from '../services/userProfileService.js'
 
 const MAX_RELATED_NOTES = 10 // 笔记详情页相关笔记最大数量
@@ -26,7 +27,7 @@ const normalizeImages = (images: any[]) =>
 
 class PostService {
   async createPost(userId: string, data: any) {
-    const { body, bodyPreview, images, tags } = data
+    const { body, bodyPreview, images } = data
 
     if (!body || !String(body).trim()) {
       throw new Error('Body are required')
@@ -39,8 +40,6 @@ class PostService {
     }
 
     payload.bodyPreview = bodyPreview ? bodyPreview : ''
-
-    if (Array.isArray(tags)) payload.tags = tags.map((t: any) => String(t))
 
     if (Array.isArray(images)) {
       if (images.length > 18) {
@@ -64,10 +63,23 @@ class PostService {
       console.error('Topic generation failed:', error)
     }
 
+    // AI 提取标签
+    try {
+      const tagNames = await extractTags(bodyStr)
+      const tagIds = await tagService.getOrCreateTags(tagNames)
+      payload.tags = tagIds
+    } catch (error) {
+      console.error('Tag extraction failed:', error)
+    }
+
     const post = await Post.create(payload)
 
     if (payload.topic) {
       topicService.incrementTopicCount(payload.topic).catch(console.error)
+    }
+
+    if (payload.tags && payload.tags.length > 0) {
+      tagService.incrementTagCounts(payload.tags).catch(console.error)
     }
 
     return post
@@ -77,6 +89,7 @@ class PostService {
     const post = await Post.findById(id)
       .populate('author', 'username')
       .populate('topic', 'name')
+      .populate('tags', 'name')
 
     if (!post) return null
 
@@ -104,29 +117,48 @@ class PostService {
     const currentPost = await Post.findById(id)
     if (!currentPost) return null
 
-    let query: any = {
-      _id: { $ne: currentPost._id },
-    }
+    // 构建复杂推荐查询：优先标签匹配，其次话题匹配
+    const matchByTags =
+      currentPost.tags && currentPost.tags.length > 0
+        ? {
+            _id: { $ne: currentPost._id },
+            tags: { $in: currentPost.tags },
+          }
+        : null
 
-    const conditions: any[] = []
+    const matchByTopic = currentPost.topic
+      ? {
+          _id: { $ne: currentPost._id },
+          topic: currentPost.topic,
+          // 排除已通过标签匹配的
+          ...(matchByTags ? { tags: { $nin: currentPost.tags } } : {}),
+        }
+      : null
 
-    if (currentPost.topic) {
-      conditions.push({ topic: currentPost.topic })
-    }
+    // 分别获取标签匹配和话题匹配的笔记
+    const tagMatchedPosts = matchByTags
+      ? await Post.find(matchByTags)
+          .sort({ createdAt: -1 })
+          .limit(MAX_RELATED_NOTES)
+          .populate('author', 'username avatar')
+          .populate('tags', 'name')
+          .lean()
+      : []
 
-    if (currentPost.tags && currentPost.tags.length > 0) {
-      conditions.push({ tags: { $in: currentPost.tags } })
-    }
+    const topicMatchedPosts = matchByTopic
+      ? await Post.find(matchByTopic)
+          .sort({ createdAt: -1 })
+          .limit(MAX_RELATED_NOTES - tagMatchedPosts.length)
+          .populate('author', 'username avatar')
+          .populate('tags', 'name')
+          .lean()
+      : []
 
-    if (conditions.length > 0) {
-      query.$or = conditions
-    }
-
-    const posts = await Post.find(query)
-      .sort({ createdAt: -1 })
-      .limit(MAX_RELATED_NOTES)
-      .populate('author', 'username avatar')
-      .lean()
+    // 合并结果：标签匹配优先
+    const posts = [...tagMatchedPosts, ...topicMatchedPosts].slice(
+      0,
+      MAX_RELATED_NOTES
+    )
 
     return posts.map((post: any) => {
       const hasImages = Array.isArray(post.images) && post.images.length > 0
@@ -153,7 +185,7 @@ class PostService {
       throw new Error('Forbidden')
     }
 
-    const { body, bodyPreview, images, tags } = data
+    const { body, bodyPreview, images } = data
     const update: any = {}
 
     if (typeof body === 'string') {
@@ -161,7 +193,6 @@ class PostService {
       update.body = bodyStr
       update.bodyPreview = bodyPreview ? bodyPreview : ''
     }
-    if (Array.isArray(tags)) update.tags = tags.map((t: any) => String(t))
     if (Array.isArray(images)) {
       if (images.length > 18) {
         throw new Error('Max 18 images')

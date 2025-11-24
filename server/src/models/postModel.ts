@@ -6,7 +6,7 @@ export interface IPost extends Document {
   bodyPreview?: string
   images: { url: string; width: number; height: number }[] // 多图支持，最多18张
   coverRatio: string
-  tags: string[] // 标签列表
+  tags: Types.ObjectId[] // 标签列表
   topic?: Types.ObjectId // 主要话题
   topics?: Types.ObjectId[] // 相关话题列表
   createdAt: Date
@@ -33,7 +33,7 @@ const PostSchema: Schema<IPost> = new Schema<IPost>(
       maxLength: 18,
     },
     coverRatio: { type: String },
-    tags: { type: [String], index: true, default: [] },
+    tags: [{ type: Schema.Types.ObjectId, ref: 'Tag', index: true }],
     topic: { type: Schema.Types.ObjectId, ref: 'Topic' },
     topics: [{ type: Schema.Types.ObjectId, ref: 'Topic' }],
   },

@@ -19,7 +19,10 @@ export interface IPost {
   body: string
   bodyPreview?: string
   images: string[]
-  tags?: string[]
+  tags?: Array<{
+    _id: string
+    name: string
+  }>
   topic?: {
     _id: string
     name: string

@@ -73,12 +73,26 @@ export function PostDetailItem({ post }: PostDetailItemProps) {
         </div>
       )}
 
-      {/* 话题展示 */}
-      {post.topic && (
-        <div className="px-6 pb-2 mt-2">
-          <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-sm text-red-300">
-            #{post.topic.name}
-          </span>
+      {/* 话题和标签展示 */}
+      {(post.topic || (post.tags && post.tags.length > 0)) && (
+        <div className="px-6 pb-2 mt-2 flex flex-wrap gap-2">
+          {/* 话题 */}
+          {post.topic && (
+            <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-sm text-red-300">
+              #{post.topic.name}
+            </span>
+          )}
+
+          {/* AI 识别的标签 */}
+          {post.tags &&
+            post.tags.map(tag => (
+              <span
+                key={tag._id}
+                className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-sm text-blue-600 border border-blue-200"
+              >
+                {tag.name}
+              </span>
+            ))}
         </div>
       )}
 

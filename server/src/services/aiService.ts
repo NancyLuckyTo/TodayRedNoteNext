@@ -1,5 +1,8 @@
 import OpenAI from 'openai'
 
+const MAX_TAGS = 4
+const MAX_TAG_LENGTH = 5
+
 const client = new OpenAI({
   apiKey: process.env.SILICONFLOW_API_KEY as string,
   baseURL: process.env.SILICONFLOW_BASE_URL as string,
@@ -104,6 +107,49 @@ export async function calculateTopicSimilarity(
     console.error('AI calculateTopicSimilarity error:', error)
     // 降级为简单的字符串匹配
     return topic1 === topic2 ? 1 : 0
+  }
+}
+
+/**
+ * 提取笔记内容标签
+ * @param content 笔记内容
+ * @returns 标签数组 (1-4个)
+ */
+export async function extractTags(content: string): Promise<string[]> {
+  try {
+    const response = await client.chat.completions.create({
+      model: 'Qwen/Qwen2.5-7B-Instruct',
+      messages: [
+        {
+          role: 'user',
+          content: `请分析以下笔记内容，提取出1-${MAX_TAGS}个最相关的标签。
+标签要求：
+1. 每个标签2-${MAX_TAG_LENGTH}个汉字
+2. 准确反映内容的关键主题或特征
+3. 标签之间不重复，互相补充
+4. 优先提取具体的概念、事物、情绪、场景等
+
+笔记内容：
+${content}
+
+请只返回标签列表，用逗号分隔，不要其他解释。例如：美食,探店,周末,杭州,咖啡`,
+        },
+      ],
+      temperature: 0.5,
+    })
+
+    const tagsText = response.choices[0]?.message?.content?.trim() || ''
+    // 解析标签，去除空白和标点
+    const tags = tagsText
+      .split(/[,，、]/)
+      .map(tag => tag.trim().replace(/[。，.、#]/g, ''))
+      .filter(tag => tag.length >= 2 && tag.length <= MAX_TAG_LENGTH)
+      .slice(0, MAX_TAGS)
+
+    return tags.length > 0 ? tags : ['生活']
+  } catch (error) {
+    console.error('AI extractTags error:', error)
+    return ['生活'] // 降级处理
   }
 }
 
