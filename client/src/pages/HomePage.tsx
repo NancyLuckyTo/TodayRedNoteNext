@@ -18,7 +18,7 @@ type BackendPostsResponse = {
 }
 
 const FETCH_LIMIT = 10
-const ROOT_MARGIN_VALUE = '500px'
+const ROOT_MARGIN_VALUE = '0px 0px 500px 0px'
 const PRIORITY_LIMIT = 6
 
 const HomePage = () => {
@@ -166,17 +166,23 @@ const HomePage = () => {
 
   useEffect(() => {
     const element = observerTarget.current
+    const root = scrollContainerRef.current
     // 如果没有元素、没有下一页、或者正在加载，就不监听
     if (!element || !hasNextPage || isLoadingMore) return
 
     const observer = new IntersectionObserver(
       entries => {
-        // 当底部元素进入视口时
-        if (entries[0].isIntersecting) {
+        const first = entries[0]
+        // 当底部元素进入预留区域时
+        if (first && first.isIntersecting) {
           handleLoadMore() // 触发加载更多
         }
       },
-      { threshold: 0.1, rootMargin: ROOT_MARGIN_VALUE }
+      {
+        root: root || null,
+        threshold: 0.1,
+        rootMargin: ROOT_MARGIN_VALUE,
+      }
     )
 
     observer.observe(element)
