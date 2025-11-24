@@ -1,6 +1,6 @@
 import OpenAI from 'openai'
 
-const MAX_TAGS = 4
+const MAX_TAGS = 6
 const MAX_TAG_LENGTH = 5
 
 const client = new OpenAI({
@@ -113,7 +113,7 @@ export async function calculateTopicSimilarity(
 /**
  * 提取笔记内容标签
  * @param content 笔记内容
- * @returns 标签数组 (1-4个)
+ * @returns 标签数组 (2-6个)
  */
 export async function extractTags(content: string): Promise<string[]> {
   try {
@@ -122,7 +122,7 @@ export async function extractTags(content: string): Promise<string[]> {
       messages: [
         {
           role: 'user',
-          content: `请分析以下笔记内容，提取出1-${MAX_TAGS}个最相关的标签。
+          content: `请分析以下笔记内容，提取出2-${MAX_TAGS}个最相关的标签。
 标签要求：
 1. 每个标签2-${MAX_TAG_LENGTH}个汉字
 2. 准确反映内容的关键主题或特征

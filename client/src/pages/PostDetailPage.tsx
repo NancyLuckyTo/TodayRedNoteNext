@@ -21,30 +21,7 @@ export default function PostDetailPage() {
   // 滚动加载相关
   const observerTarget = useRef<HTMLDivElement>(null)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
-
-  // 初始加载
-  useEffect(() => {
-    const fetchInitialPost = async () => {
-      if (!id) return
-
-      try {
-        setLoading(true)
-        // 清空之前的列表，避免闪烁
-        setPosts([])
-
-        const { data } = await api.get<{ post: IPost }>(`/posts/${id}`)
-        const normalizedPost = normalizePost(data.post)
-        setPosts([normalizedPost])
-      } catch (err) {
-        console.error(err)
-        setError('笔记不存在')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchInitialPost()
-  }, [id])
+  const [shouldLoadRelated, setShouldLoadRelated] = useState(false)
 
   /**
    * 加载更多相关笔记
@@ -72,6 +49,42 @@ export default function PostDetailPage() {
       setIsLoadingMore(false)
     }
   }, [isLoadingMore, id])
+
+  // 初始加载
+  useEffect(() => {
+    const fetchInitialPost = async () => {
+      if (!id) return
+
+      try {
+        setLoading(true)
+        // 清空之前的列表，避免闪烁
+        setPosts([])
+        setShouldLoadRelated(false)
+
+        const { data } = await api.get<{ post: IPost }>(`/posts/${id}`)
+        const normalizedPost = normalizePost(data.post)
+        setPosts([normalizedPost])
+
+        // 触发加载相关推荐
+        setShouldLoadRelated(true)
+      } catch (err) {
+        console.error(err)
+        setError('笔记不存在')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchInitialPost()
+  }, [id])
+
+  // 在初始笔记加载完成后，加载相关推荐
+  useEffect(() => {
+    if (shouldLoadRelated && !loading) {
+      loadMoreRelatedPosts()
+      setShouldLoadRelated(false)
+    }
+  }, [shouldLoadRelated, loading, loadMoreRelatedPosts])
 
   /**
    * 监听滚动到底部
@@ -153,12 +166,12 @@ export default function PostDetailPage() {
         ))}
 
         {/* 底部加载触发器 */}
-        {/* <div
+        <div
           ref={observerTarget}
-          className="h-10 flex items-center justify-center py-4"
+          className="flex h-10 items-center justify-center py-4"
         >
-          {isLoadingMore && <Spinner className="w-6 h-6" />}
-        </div> */}
+          {isLoadingMore && <Spinner className="h-6 w-6" />}
+        </div>
       </main>
     </div>
   )

@@ -141,6 +141,7 @@ class PostService {
           .sort({ createdAt: -1 })
           .limit(MAX_RELATED_NOTES)
           .populate('author', 'username avatar')
+          .populate('topic', 'name')
           .populate('tags', 'name')
           .lean()
       : []
@@ -150,6 +151,7 @@ class PostService {
           .sort({ createdAt: -1 })
           .limit(MAX_RELATED_NOTES - tagMatchedPosts.length)
           .populate('author', 'username avatar')
+          .populate('topic', 'name')
           .populate('tags', 'name')
           .lean()
       : []
@@ -272,6 +274,8 @@ class PostService {
       .sort({ createdAt: -1, _id: -1 })
       .limit(limit + 1)
       .populate('author', 'username avatar')
+      .populate('topic', 'name')
+      .populate('tags', 'name')
       .lean()
 
     const hasNextPage = posts.length > limit

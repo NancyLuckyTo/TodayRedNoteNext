@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   Form,
   FormControl,
@@ -155,7 +154,7 @@ const CreatePostPage = () => {
                         }}
                         placeholder="分享你的想法"
                         disabled={isPending}
-                        className="min-h-[150px]"
+                        className="min-h-[120px]"
                       />
                     </div>
                   </FormControl>
@@ -172,25 +171,6 @@ const CreatePostPage = () => {
               triggerAdd={triggerFileInput}
               fileInputRef={fileInputRef}
               disabled={isPending}
-            />
-
-            {/* 标签 */}
-            <FormField
-              control={form.control}
-              name="tags"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      placeholder="输入标签，用逗号分隔，如: 生活,美食,旅行"
-                      {...field}
-                      disabled={isPending}
-                      className="border-none"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
             />
           </form>
         </Form>
