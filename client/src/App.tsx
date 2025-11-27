@@ -7,8 +7,7 @@ import {
 import { useEffect } from 'react'
 import BottomNav from './components/BottomNav'
 import HomePage from './pages/HomePage'
-import CreatePostPage from './pages/CreatePostPage'
-import EditPostPage from './pages/EditPostPage'
+import PostEditorPage from './pages/PostEditorPage'
 import ProfilePage from './pages/ProfilePage'
 import LoginPage from './pages/LoginPage'
 import PrivateRoute from './components/PrivateRoute'
@@ -31,7 +30,7 @@ function Layout() {
           path="/createPost"
           element={
             <PrivateRoute>
-              <CreatePostPage />
+              <PostEditorPage />
             </PrivateRoute>
           }
         />
@@ -42,7 +41,7 @@ function Layout() {
           path="/editPost/:id"
           element={
             <PrivateRoute>
-              <EditPostPage />
+              <PostEditorPage />
             </PrivateRoute>
           }
         />

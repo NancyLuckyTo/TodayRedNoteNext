@@ -2,7 +2,6 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRef, useState, useEffect } from 'react'
-import { X, Plus } from 'lucide-react'
 import { Editor } from '@tiptap/react'
 import type { IPost } from '@today-red-note/types'
 import { Button } from '@/components/ui/button'
@@ -14,11 +13,10 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Spinner } from '@/components/ui/spinner'
-import {
-  useImageSelection,
-  type SelectedImage,
-} from '@/hooks/useImageSelection'
+import { useImageSelection } from '@/hooks/useImageSelection'
+import { useCreatePost } from '@/hooks/useCreatePost'
 import { useUpdatePost } from '@/hooks/useUpdatePost'
+import { ImageUploader } from '@/components/create-post/ImageUploader'
 import {
   RichTextEditor,
   type RichTextEditorRef,
@@ -27,25 +25,28 @@ import { RichTextToolbar } from '@/components/create-post/RichTextToolbar'
 import { useKeyboardPosition } from '@/hooks/useKeyboardPosition'
 import { htmlToText, postSchema, type PostFormData } from '@/lib/postUtils'
 import api from '@/lib/api'
-import {
-  BODY_MAX_LENGTH,
-  BODY_PREVIEW_MAX_LENGTH,
-  MAX_IMAGES_COUNT,
-} from '@/constants/post'
+import { BODY_MAX_LENGTH, BODY_PREVIEW_MAX_LENGTH } from '@/constants/post'
 
-const EditPostPage = () => {
+/**
+ * 统一的笔记编辑器页面
+ * - 无 id 参数时为「新建」模式
+ * - 有 id 参数时为「编辑」模式
+ */
+const PostEditorPage = () => {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
+  const isEditMode = Boolean(id)
+
   const editorRef = useRef<RichTextEditorRef>(null)
   const [editorInstance, setEditorInstance] = useState<Editor | null>(null)
   const [editorContent, setEditorContent] = useState('')
   const { isKeyboardVisible, keyboardHeight } = useKeyboardPosition()
 
-  // 已有图片 URL 列表
+  // 编辑模式下的已有图片
   const [existingImages, setExistingImages] = useState<string[]>([])
-  // 帖子加载状态
-  const [loading, setLoading] = useState(true)
+  // 编辑模式下的加载状态
+  const [loading, setLoading] = useState(isEditMode)
   const [post, setPost] = useState<IPost | null>(null)
 
   // 新上传的图片
@@ -53,20 +54,32 @@ const EditPostPage = () => {
     images: newImages,
     fileInputRef,
     handleFilesSelected,
-    removeImageAt: removeNewImageAt,
+    removeImageAt,
     resetImages,
     triggerFileInput,
   } = useImageSelection()
 
-  const { mutate: updatePost, isPending } = useUpdatePost({
+  // 创建/更新 mutation
+  const { mutate: createPost, isPending: isCreating } = useCreatePost({
     onSuccess: () => {
       resetImages()
       setEditorContent('')
     },
   })
 
-  // 加载帖子数据
+  const { mutate: updatePost, isPending: isUpdating } = useUpdatePost({
+    onSuccess: () => {
+      resetImages()
+      setEditorContent('')
+    },
+  })
+
+  const isPending = isCreating || isUpdating
+
+  // 编辑模式下加载帖子数据
   useEffect(() => {
+    if (!isEditMode) return
+
     const loadPost = async () => {
       // 优先从路由 state 获取
       const statePost = (location.state as { post?: IPost } | null)?.post
@@ -97,7 +110,7 @@ const EditPostPage = () => {
     }
 
     loadPost()
-  }, [id, location.state, navigate])
+  }, [id, isEditMode, location.state, navigate])
 
   const handleEditorRef = (ref: RichTextEditorRef | null) => {
     editorRef.current = ref
@@ -109,7 +122,7 @@ const EditPostPage = () => {
     defaultValues: { body: '', tags: '' },
   })
 
-  // 当帖子加载后更新表单默认值
+  // 编辑模式下，帖子加载后更新表单默认值
   useEffect(() => {
     if (post) {
       form.reset({
@@ -124,7 +137,6 @@ const EditPostPage = () => {
   }
 
   const onSubmit = (data: PostFormData) => {
-    if (!id) return
     const textContent = htmlToText(editorContent)
     if (textContent.trim().length === 0) {
       form.setError('body', { message: '请输入内容' })
@@ -135,18 +147,28 @@ const EditPostPage = () => {
       return
     }
 
-    updatePost({
-      postId: id,
-      data: {
-        ...data,
-        body: editorContent,
-        bodyPreview: textContent.substring(0, BODY_PREVIEW_MAX_LENGTH),
-      },
-      images: newImages,
-      existingImages,
-    })
+    const postData = {
+      ...data,
+      body: editorContent,
+      bodyPreview: textContent.substring(0, BODY_PREVIEW_MAX_LENGTH),
+    }
+
+    if (isEditMode && id) {
+      updatePost({
+        postId: id,
+        data: postData,
+        images: newImages,
+        existingImages,
+      })
+    } else {
+      createPost({
+        data: postData,
+        images: newImages,
+      })
+    }
   }
 
+  // 编辑模式下的加载状态
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -155,8 +177,7 @@ const EditPostPage = () => {
     )
   }
 
-  const totalImagesCount = existingImages.length + newImages.length
-  const canAddMore = totalImagesCount < MAX_IMAGES_COUNT
+  const formId = isEditMode ? 'edit-post-form' : 'create-post-form'
 
   return (
     <div className="min-h-screen bg-white pb-24">
@@ -171,13 +192,31 @@ const EditPostPage = () => {
           取消
         </Button>
         <div className="flex gap-3">
+          {/* 新建模式下显示存草稿按钮 */}
+          {!isEditMode && (
+            <Button
+              type="submit"
+              variant="secondary"
+              form={formId}
+              disabled={isPending}
+            >
+              存草稿
+            </Button>
+          )}
+          {/* 发布/保存按钮 */}
           <Button
             type="submit"
             variant="redButton"
-            form="edit-post-form"
+            form={formId}
             disabled={isPending}
           >
-            {isPending ? '保存中...' : '保存'}
+            {isPending
+              ? isEditMode
+                ? '保存中...'
+                : '发布中...'
+              : isEditMode
+                ? '保存'
+                : '发布'}
           </Button>
         </div>
       </div>
@@ -186,7 +225,7 @@ const EditPostPage = () => {
       <div className="p-4">
         <Form {...form}>
           <form
-            id="edit-post-form"
+            id={formId}
             onSubmit={form.handleSubmit(onSubmit)}
             className="space-y-4"
           >
@@ -216,99 +255,22 @@ const EditPostPage = () => {
               )}
             />
 
-            {/* 图片区域 */}
-            <div className="space-y-4">
-              {/* 已有图片和新上传图片的预览 */}
-              {(existingImages.length > 0 || newImages.length > 0) && (
-                <div className="grid grid-cols-3 gap-2">
-                  {/* 已有图片 */}
-                  {existingImages.map((url, index) => (
-                    <div
-                      key={`existing-${index}`}
-                      className="relative aspect-square overflow-hidden rounded-lg bg-muted"
-                    >
-                      <img
-                        src={url}
-                        alt={`已有图片 ${index + 1}`}
-                        className="h-full w-full object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeExistingImage(index)}
-                        disabled={isPending}
-                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80 disabled:opacity-50"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* 新上传的图片 */}
-                  {newImages.map((img: SelectedImage, index: number) => (
-                    <div
-                      key={`new-${index}`}
-                      className="relative aspect-square overflow-hidden rounded-lg bg-muted"
-                    >
-                      <img
-                        src={img.previewUrl}
-                        alt={`新图片 ${index + 1}`}
-                        className="h-full w-full object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeNewImageAt(index)}
-                        disabled={isPending}
-                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80 disabled:opacity-50"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* 添加更多按钮 */}
-                  {canAddMore && (
-                    <button
-                      type="button"
-                      onClick={triggerFileInput}
-                      disabled={isPending}
-                      className="flex aspect-square items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/50 text-muted-foreground transition-colors hover:border-muted-foreground/50 hover:bg-muted disabled:opacity-50"
-                    >
-                      <Plus className="h-8 w-8" />
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* 空状态时的添加按钮 */}
-              {existingImages.length === 0 && newImages.length === 0 && (
-                <button
-                  type="button"
-                  onClick={triggerFileInput}
-                  disabled={isPending}
-                  className="flex h-32 w-full items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/50 text-muted-foreground transition-colors hover:border-muted-foreground/50 hover:bg-muted disabled:opacity-50"
-                >
-                  <div className="flex flex-col items-center gap-2">
-                    <Plus className="h-8 w-8" />
-                    <span className="text-sm">添加图片</span>
-                  </div>
-                </button>
-              )}
-
-              {/* 隐藏的文件输入 */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/jpg,image/png,image/webp"
-                multiple
-                onChange={handleFilesSelected}
-                className="hidden"
-              />
-            </div>
+            {/* 图片上传 */}
+            <ImageUploader
+              images={newImages}
+              existingImages={existingImages}
+              onFilesSelected={handleFilesSelected}
+              onRemove={removeImageAt}
+              onRemoveExisting={removeExistingImage}
+              triggerAdd={triggerFileInput}
+              fileInputRef={fileInputRef}
+              disabled={isPending}
+            />
           </form>
         </Form>
       </div>
 
-      {/* 富文本功能栏 */}
+      {/* 富文本功能栏 - 固定在底部，键盘弹出时贴在键盘上方 */}
       <div
         className="fixed left-0 right-0 bottom-0 z-50 transition-transform duration-300 ease-in-out safe-area-inset-bottom"
         style={{
@@ -324,4 +286,4 @@ const EditPostPage = () => {
   )
 }
 
-export default EditPostPage
+export default PostEditorPage
