@@ -13,8 +13,6 @@ const IMAGE_RATIO_META: Record<
 > = {
   landscape: { aspectRatio: '4 / 3', heightRatio: 3 / 4 },
   portrait: { aspectRatio: '3 / 4', heightRatio: 4 / 3 },
-  square: { aspectRatio: '1 / 1', heightRatio: 1 },
-  none: { aspectRatio: '1 / 1', heightRatio: 0 },
 }
 
 const BASE_CARD_OFFSET = 24 // 作者信息与点赞所占高度
@@ -33,8 +31,8 @@ export const calculatePostHeight = (post: IPost, columnWidth: number) => {
   const hasBody = body && body.trim().length > 0
 
   // 封面图及其比例
-  const coverRatio = post.coverRatio || IMAGE_RATIO.NONE
-  const aspectMeta = IMAGE_RATIO_META[coverRatio]
+  const coverRatio = post.coverRatio || IMAGE_RATIO.PORTRAIT
+  const aspectMeta = IMAGE_RATIO_META[coverRatio] || IMAGE_RATIO_META.portrait
 
   const estimatedImageHeight = hasImages
     ? aspectMeta.heightRatio * columnWidth
@@ -53,7 +51,10 @@ export const calculatePostHeight = (post: IPost, columnWidth: number) => {
  * @returns CSS aspect-ratio 值
  */
 export function getAspectRatio(coverRatio: ImageRatio) {
-  return IMAGE_RATIO_META[coverRatio]?.aspectRatio || '1 / 1'
+  return (
+    IMAGE_RATIO_META[coverRatio]?.aspectRatio ||
+    IMAGE_RATIO_META.portrait.aspectRatio
+  )
 }
 
 export const normalizePost = (post: IPost): IPost => ({
@@ -64,7 +65,7 @@ export const normalizePost = (post: IPost): IPost => ({
         typeof img === 'string' ? img : img?.url
       )
       .filter((url): url is string => Boolean(url)) || [],
-  coverRatio: post.coverRatio ?? IMAGE_RATIO.SQUARE,
+  coverRatio: post.coverRatio ?? IMAGE_RATIO.PORTRAIT,
 })
 
 /** 将 HTML 转换为纯文本 */

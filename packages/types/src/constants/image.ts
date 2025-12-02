@@ -28,12 +28,10 @@ export const IMAGE_QUALITY_CONFIG = {
   },
 }
 
-// 图片比例
+// 图片比例（仅横图/竖图两种形式）
 export const IMAGE_RATIO = {
   LANDSCAPE: 'landscape',
   PORTRAIT: 'portrait',
-  SQUARE: 'square',
-  NONE: 'none',
 } as const
 
 export type ImageRatio = (typeof IMAGE_RATIO)[keyof typeof IMAGE_RATIO]

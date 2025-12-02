@@ -66,7 +66,7 @@ export const applyImagesToTarget = (
   if (validImages.length > 0) {
     target.coverRatio = calculateRatioType(validImages[0])
   } else if (options?.resetWhenEmpty) {
-    target.coverRatio = IMAGE_RATIO.NONE
+    target.coverRatio = IMAGE_RATIO.PORTRAIT
   }
 
   target.images = validImages

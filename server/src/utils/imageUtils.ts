@@ -6,26 +6,17 @@ import {
   IMAGE_QUALITY_CONFIG,
 } from '@today-red-note/types'
 
-// 图片比例阈值配置
-export const RATIO_THRESHOLD = {
-  // 宽高比大于 1.2 视为横图
-  LANDSCAPE_MIN: 1.2,
-  // 宽高比小于 0.8 视为竖图
-  PORTRAIT_MAX: 0.8,
-} as const
-
 /**
  * 计算图片比例类型
+ * - ratio >= 1（宽 >= 高）=> 横图
+ * - ratio < 1（宽 < 高）=> 竖图
  */
 export const calculateRatioType = (image: {
   width: number
   height: number
 }): ImageRatio => {
-  if (image.width === 0 || image.height === 0) return IMAGE_RATIO.NONE
   const ratio = image.width / image.height
-  if (ratio > RATIO_THRESHOLD.LANDSCAPE_MIN) return IMAGE_RATIO.LANDSCAPE
-  if (ratio < RATIO_THRESHOLD.PORTRAIT_MAX) return IMAGE_RATIO.PORTRAIT
-  return IMAGE_RATIO.SQUARE
+  return ratio >= 1 ? IMAGE_RATIO.LANDSCAPE : IMAGE_RATIO.PORTRAIT
 }
 
 /**
