@@ -3,7 +3,7 @@ import { Card } from './ui/card'
 import { Heart, ImageOff } from 'lucide-react'
 import { IMAGE_RATIO } from '@today-red-note/types'
 import type { IPost } from '@today-red-note/types'
-import defaultAvatar from '@/assets/images/avatar.png'
+import { getDefaultAvatar } from '@/lib/avatarUtils'
 import { getAspectRatio, htmlToText } from '@/lib/postUtils'
 
 interface PostCardProps {
@@ -23,7 +23,7 @@ export function PostCard({ post, onClick, priority = false }: PostCardProps) {
   // 封面图及其比例
   const firstImage = hasImages ? images[0] : null
   const aspectRatio = hasImages
-    ? getAspectRatio(post.coverRatio || IMAGE_RATIO.NONE)
+    ? getAspectRatio(post.coverRatio || IMAGE_RATIO.PORTRAIT)
     : '0'
 
   // 正文预览，使用 bodyPreview 字段，如果不存在则从 HTML 中提取
@@ -63,7 +63,7 @@ export function PostCard({ post, onClick, priority = false }: PostCardProps) {
       {/* 作者头像、名字、点赞数 */}
       <div className="flex items-center gap-1 px-3 pb-2">
         <img
-          src={author.avatar || defaultAvatar}
+          src={author.avatar || getDefaultAvatar(author.username)}
           alt={author.username}
           className="w-4 h-4 rounded-full object-cover"
         />

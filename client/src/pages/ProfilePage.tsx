@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/store/auth'
 import { Settings, Plus, Info, Search, Lock, LogOut } from 'lucide-react'
-import defaultAvatar from '@/assets/images/avatar.png'
+import { getDefaultAvatar } from '@/lib/avatarUtils'
 import { WaterfallContainer } from '../components/WaterfallContainer'
 import { PostCard } from '../components/PostCard'
 import api from '@/lib/api'
@@ -16,7 +16,7 @@ import { FETCH_LIMIT, PRIORITY_LIMIT } from '@today-red-note/types'
 
 const ProfilePage = () => {
   const navigate = useNavigate()
-  const logout = useAuthStore(s => s.logout)
+  const { user, logout } = useAuthStore()
   const {
     posts,
     nextCursor,
@@ -179,7 +179,7 @@ const ProfilePage = () => {
           <div className="relative">
             <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-400">
               <img
-                src={defaultAvatar}
+                src={getDefaultAvatar(user?.username, 96)}
                 alt="avatar"
                 className="w-full h-full object-cover"
               />
@@ -193,7 +193,9 @@ const ProfilePage = () => {
           {/* 右侧文字信息区域：flex-1 占满剩余宽度 */}
           <div className="flex-1 pt-2">
             <div className="flex items-center justify-between">
-              <h1 className="text-white text-xl font-bold mb-2">简笔画</h1>
+              <h1 className="text-white text-xl font-bold mb-2">
+                {user?.username || '用户'}
+              </h1>
               <Button variant="ghost" onClick={onLogout}>
                 {<LogOut className="w-5 h-5 text-gray-300" />}
               </Button>

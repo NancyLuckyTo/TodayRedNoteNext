@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import defaultAvatar from '@/assets/images/avatar.png'
+import { getDefaultAvatar } from '@/lib/avatarUtils'
 import type { IPost } from '@today-red-note/types'
 import { RichTextEditor } from '@/components/create-post/RichTextEditor'
 import { useAuthStore } from '@/store/auth'
@@ -64,7 +64,7 @@ export function PostDetailItem({ post }: PostDetailItemProps) {
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
           <img
-            src={author.avatar || defaultAvatar}
+            src={author.avatar || getDefaultAvatar(author.username)}
             alt={author.username}
             className="h-10 w-10 rounded-full object-cover border border-border"
           />
