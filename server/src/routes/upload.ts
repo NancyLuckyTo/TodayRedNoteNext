@@ -34,7 +34,11 @@ router.post('/request-url', auth, async (req: AuthRequest, res, next) => {
 
     const region = process.env.ALI_OSS_REGION as string
     const bucket = process.env.ALI_OSS_BUCKET as string
-    const publicUrl = `https://${bucket}.${region}.aliyuncs.com/${objectName}`
+    // 优先使用 CDN 域名（支持 HTTP/2），否则回退到 OSS 直链
+    const cdnDomain = process.env.CDN_DOMAIN
+    const publicUrl = cdnDomain
+      ? `https://${cdnDomain}/${objectName}`
+      : `https://${bucket}.${region}.aliyuncs.com/${objectName}`
 
     return res.json({ uploadUrl, publicUrl, objectName, expires })
   } catch (err) {
@@ -60,6 +64,11 @@ router.post('/request-urls', auth, async (req: AuthRequest, res, next) => {
     const expires = 300 // seconds
     const region = process.env.ALI_OSS_REGION as string
     const bucket = process.env.ALI_OSS_BUCKET as string
+    // 优先使用 CDN 域名（支持 HTTP/2），否则回退到 OSS 直链
+    const cdnDomain = process.env.CDN_DOMAIN
+    const baseUrl = cdnDomain
+      ? `https://${cdnDomain}`
+      : `https://${bucket}.${region}.aliyuncs.com`
 
     const results = files.map((f: any) => {
       const filename = String(f?.filename || '')
@@ -73,7 +82,7 @@ router.post('/request-urls', auth, async (req: AuthRequest, res, next) => {
         expires,
         'Content-Type': contentType,
       })
-      const publicUrl = `https://${bucket}.${region}.aliyuncs.com/${objectName}`
+      const publicUrl = `${baseUrl}/${objectName}`
       return { uploadUrl, publicUrl, objectName, expires }
     })
 
