@@ -31,9 +31,13 @@ export const processImageUrl = (
 ): string => {
   try {
     const urlObj = new URL(url)
-    // 如果已经有处理参数，直接返回
+    // 强制使用 HTTPS 协议，避免 Mixed Content 错误
+    if (urlObj.protocol === 'http:') {
+      urlObj.protocol = 'https:'
+    }
+    // 如果已经有处理参数，直接返回（但仍需确保协议正确）
     if (urlObj.searchParams.has('x-oss-process')) {
-      return url
+      return urlObj.toString()
     }
 
     // 获取质量配置
