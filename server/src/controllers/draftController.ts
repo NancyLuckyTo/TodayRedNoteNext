@@ -32,10 +32,9 @@ class DraftController {
         return res.status(401).json({ message: 'Unauthorized' })
       }
 
-      const { body, tags, images } = req.body
+      const { body, images } = req.body
       const draft = await draftService.saveDraft(userId, {
         body: body || '',
-        tags,
         images,
       })
 
@@ -57,11 +56,10 @@ class DraftController {
       }
 
       const { id } = req.params
-      const { body, tags, images } = req.body
+      const { body, images } = req.body
 
       const draft = await draftService.updateDraft(id, userId, {
         body: body || '',
-        tags,
         images,
       })
 
