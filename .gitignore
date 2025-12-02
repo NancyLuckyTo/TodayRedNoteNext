@@ -27,8 +27,6 @@ dist-ssr
 
 .env
 
-*.md
-
 /server/src/data
 /server/src/scripts
 
