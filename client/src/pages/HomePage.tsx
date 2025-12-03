@@ -7,10 +7,18 @@ import api from '@/lib/api'
 import type { PostsResponse } from '@/types/posts'
 import { calculatePostHeight, normalizePost } from '@/lib/postUtils'
 import { Spinner } from '@/components/ui/spinner'
+import { HomePageSkeleton } from '@/components/PostCardSkeleton'
 import { useHomeStore } from '@/store/homeStore'
 import { usePullToRefresh } from '@/hooks/usePullToRefresh'
 import { ROOT_MARGIN_VALUE } from '@/constants/post'
 import { FETCH_LIMIT, PRIORITY_LIMIT } from '@today-red-note/types'
+
+// 声明 window 上的预取数据类型
+declare global {
+  interface Window {
+    __PREFETCH_POSTS__?: Promise<PostsResponse | null>
+  }
+}
 
 const HomePage = () => {
   const {
@@ -112,12 +120,46 @@ const HomePage = () => {
     [setPagination, setPosts, addViewedPostIds, getExcludeIds]
   )
 
-  // 初始化，组件挂载时请求第一页数
+  // 初始化，组件挂载时优先使用预取数据，否则请求第一页
   useEffect(() => {
-    if (posts.length === 0) {
+    if (posts.length > 0) return
+
+    const initializeData = async () => {
+      // 优先使用 HTML 中预取的数据
+      if (window.__PREFETCH_POSTS__) {
+        try {
+          setIsInitialLoading(true)
+          const prefetchedData = await window.__PREFETCH_POSTS__
+          // 清除预取数据，避免重复使用
+          window.__PREFETCH_POSTS__ = undefined
+
+          if (prefetchedData?.posts?.length) {
+            const normalizedPosts = prefetchedData.posts.map(normalizePost)
+            const newPostIds = normalizedPosts.map(p => p._id)
+            if (newPostIds.length > 0) {
+              addViewedPostIds(newPostIds)
+            }
+            setPosts(normalizedPosts)
+            setPagination(
+              prefetchedData.pagination?.nextCursor ?? null,
+              Boolean(prefetchedData.pagination?.hasNextPage)
+            )
+            setIsInitialLoading(false)
+            return
+          }
+        } catch (err) {
+          console.warn('Prefetch data failed, falling back to fetch:', err)
+        } finally {
+          setIsInitialLoading(false)
+        }
+      }
+
+      // 回退到普通请求
       fetchPosts()
     }
-  }, [fetchPosts, posts.length])
+
+    initializeData()
+  }, [fetchPosts, posts.length, addViewedPostIds, setPagination, setPosts])
 
   // 滚动容器 ref
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -212,7 +254,7 @@ const HomePage = () => {
       {/* 顶部导航栏 */}
       <div className="flex-none z-10 bg-background border-b px-4 py-2">
         <div className="flex items-center justify-center">
-          <h1 className="text-">发现</h1>
+          <h1 className="text-base font-normal">发现</h1>
         </div>
       </div>
 
@@ -225,11 +267,8 @@ const HomePage = () => {
         {/* 下拉刷新指示器 */}
         <PullToRefreshIndicator ref={indicatorRef} state={pullState} />
 
-        {isInitialLoading && !posts.length ? (
-          <div className="flex justify-center items-center py-10">
-            <Spinner />
-          </div>
-        ) : null}
+        {/* 首屏加载时显示骨架屏，与 HTML 骨架屏视觉一致，避免跳跃 */}
+        {isInitialLoading && !posts.length ? <HomePageSkeleton /> : null}
 
         {/* 瀑布流容器 */}
         {!isEmpty && (

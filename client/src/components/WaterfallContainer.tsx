@@ -57,7 +57,7 @@ export function WaterfallContainer({ children }: WaterfallContainerProps) {
       {columns.map((column, columnIndex) => (
         <div
           key={`column-${columnIndex}`}
-          className="flex w-1/2 flex-col gap-1"
+          className="flex flex-1 flex-col gap-1 min-w-0"
         >
           {column.map(item => (
             <div key={item.element.key}>{item.element}</div>

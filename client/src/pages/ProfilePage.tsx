@@ -291,7 +291,7 @@ const ProfilePage = () => {
           </div>
         </div>
 
-        <div className="px-1 pb-20">
+        <div className="pb-20">
           {activeTab === 'notes' && (
             <>
               {isInitialLoading && !posts.length ? (
