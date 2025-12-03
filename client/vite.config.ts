@@ -15,35 +15,18 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: id => {
-          // React 核心库
-          if (
-            id.includes('node_modules/react-dom') ||
-            id.includes('node_modules/react/')
-          ) {
-            return 'react-vendor'
-          }
-          // 路由相关
-          if (id.includes('node_modules/react-router')) {
-            return 'router'
-          }
-          // 状态管理和数据请求
-          if (
-            id.includes('node_modules/zustand') ||
-            id.includes('node_modules/@tanstack/react-query') ||
-            id.includes('node_modules/axios')
-          ) {
-            return 'data-layer'
-          }
-          // 富文本编辑器（较大，会被懒加载的页面引用）
+          // 富文本编辑器（较大，会被懒加载的页面引用）单独打包
           if (
             id.includes('node_modules/@tiptap') ||
             id.includes('node_modules/prosemirror')
           ) {
             return 'editor'
           }
-          // Radix UI 组件库
-          if (id.includes('node_modules/@radix-ui')) {
-            return 'ui-vendor'
+
+          // 其他所有第三方依赖统一打包到 vendor
+          // 避免因拆包过细（如将 react, lucide, radix 分开）导致的循环依赖或初始化顺序问题
+          if (id.includes('node_modules')) {
+            return 'vendor'
           }
         },
       },
