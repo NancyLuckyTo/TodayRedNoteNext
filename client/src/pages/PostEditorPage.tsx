@@ -22,7 +22,10 @@ import {
 } from '@/hooks/useImageSelection'
 import { useCreatePost } from '@/hooks/useCreatePost'
 import { useUpdatePost } from '@/hooks/useUpdatePost'
-import { useDraftAutoSave } from '@/hooks/useDraftAutoSave'
+import {
+  useDraftAutoSave,
+  isEditorContentEmpty,
+} from '@/hooks/useDraftAutoSave'
 import { ImageUploader } from '@/components/create-post/ImageUploader'
 import {
   RichTextEditor,
@@ -250,15 +253,23 @@ const PostEditorPage = () => {
 
   // 退出时保存草稿
   const handleCancel = useCallback(async () => {
-    if (!isEditMode && (editorContent.trim() || newImages.length > 0)) {
-      // 立即保存草稿到本地和云端
-      await saveDraftNow({
+    if (!isEditMode) {
+      // 检查是否有实质内容
+      const content = {
         body: editorContent,
         topic: form.getValues('topic'),
         images: newImages,
         existingImages,
-      })
-      toast.success('草稿已保存')
+      }
+
+      if (!isEditorContentEmpty(content)) {
+        // 立即保存草稿到本地和云端
+        await saveDraftNow(content)
+        toast.success('草稿已保存')
+      } else {
+        // 内容为空，清除本地和云端草稿
+        await clearDraft()
+      }
     }
     navigate(-1)
   }, [
@@ -268,6 +279,7 @@ const PostEditorPage = () => {
     existingImages,
     form,
     saveDraftNow,
+    clearDraft,
     navigate,
   ])
 

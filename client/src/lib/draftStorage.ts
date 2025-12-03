@@ -1,7 +1,33 @@
 import type { IDraft, ICloudDraft } from '@today-red-note/types'
+import axios from 'axios'
 import api from './api'
 
 const DRAFT_STORAGE_KEY = 'post_draft'
+
+/**
+ * 检查富文本正文是否为空
+ * 富文本编辑器空内容可能是 <p></p>、<p><br></p> 等
+ */
+export function isBodyEmpty(body: string | undefined): boolean {
+  const trimmed = body?.trim() || ''
+  const textContent = trimmed
+    .replace(/<[^>]*>/g, '') // 移除所有 HTML 标签
+    .replace(/&nbsp;/g, ' ') // 替换 &nbsp;
+    .replace(/[\u200B-\u200D\uFEFF]/g, '') // 移除零宽字符
+    .trim()
+  return textContent.length === 0
+}
+
+/**
+ * 检查持久化草稿是否为空（本地存储/云端）
+ */
+export function isStoredDraftEmpty(draft: IDraft | Partial<IDraft>): boolean {
+  const hasBody = !isBodyEmpty(draft.body)
+  const hasImages =
+    (draft.uploadedImages && draft.uploadedImages.length > 0) ||
+    (draft.localImages && draft.localImages.length > 0)
+  return !hasBody && !hasImages
+}
 
 /**
  * 草稿存储服务
@@ -19,6 +45,12 @@ export const draftStorage = {
    * 保存草稿到本地存储
    */
   saveLocal(draft: IDraft): void {
+    // 如果是空草稿，不保存，直接清除本地存储
+    if (isStoredDraftEmpty(draft)) {
+      this.clearLocal()
+      return
+    }
+
     try {
       localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
     } catch (error) {
@@ -55,6 +87,11 @@ export const draftStorage = {
    * 保存草稿到云端
    */
   async saveCloud(draft: IDraft): Promise<ICloudDraft | null> {
+    // 如果是空草稿，不保存
+    if (isStoredDraftEmpty(draft)) {
+      return null
+    }
+
     try {
       const payload = {
         body: draft.body,
@@ -64,11 +101,28 @@ export const draftStorage = {
 
       if (draft.cloudId) {
         // 更新现有草稿
-        const { data } = await api.put<{ draft: ICloudDraft }>(
-          `/drafts/${draft.cloudId}`,
-          payload
-        )
-        return data.draft
+        try {
+          const { data } = await api.put<{ draft: ICloudDraft }>(
+            `/drafts/${draft.cloudId}`,
+            payload
+          )
+          return data.draft
+        } catch (putError: unknown) {
+          // 如果草稿不存在（404），回退到创建新草稿
+          if (axios.isAxiosError(putError)) {
+            const status = putError.response?.status
+            if (status === 404) {
+              console.warn('云端草稿不存在，创建新草稿')
+              // 清除无效的 cloudId，创建新草稿
+              const { data } = await api.post<{ draft: ICloudDraft }>(
+                '/drafts',
+                payload
+              )
+              return data.draft
+            }
+          }
+          throw putError
+        }
       } else {
         // 创建新草稿
         const { data } = await api.post<{ draft: ICloudDraft }>(
@@ -103,7 +157,12 @@ export const draftStorage = {
     try {
       await api.delete(`/drafts/${cloudId}`)
       return true
-    } catch (error) {
+    } catch (error: unknown) {
+      // 如果草稿不存在（404），视为删除成功
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        console.warn('云端草稿不存在，无需删除')
+        return true
+      }
       console.error('删除云端草稿失败:', error)
       return false
     }

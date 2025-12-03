@@ -1,16 +1,31 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import type { IDraft } from '@today-red-note/types'
-import { draftStorage } from '@/lib/draftStorage'
+import {
+  draftStorage,
+  isStoredDraftEmpty,
+  isBodyEmpty,
+} from '@/lib/draftStorage'
 import { uploadImages } from '@/lib/postUtils'
 import type { SelectedImage } from './useImageSelection'
 
 const AUTO_SAVE_INTERVAL = 5000 // 5秒自动保存
 
-interface DraftContent {
+export interface DraftContent {
   body: string
   topic?: string
   images: SelectedImage[]
   existingImages?: string[]
+}
+
+/**
+ * 检查编辑器内容是否为空（表单状态）
+ */
+export const isEditorContentEmpty = (content: DraftContent): boolean => {
+  const hasBody = !isBodyEmpty(content.body)
+  const hasExistingImages =
+    content.existingImages && content.existingImages.length > 0
+  const hasNewImages = content.images && content.images.length > 0
+  return !hasBody && !hasExistingImages && !hasNewImages
 }
 
 interface UseDraftAutoSaveOptions {
@@ -101,6 +116,19 @@ export const useDraftAutoSave = (
         return
       }
 
+      const isEmpty = isEditorContentEmpty(content)
+
+      // 如果内容为空，不保存草稿，但如果已有云端草稿则删除
+      if (isEmpty) {
+        if (draft?.cloudId) {
+          await draftStorage.deleteCloud(draft.cloudId)
+          draftStorage.clearLocal()
+          setDraft(null)
+          setIsDirty(false)
+        }
+        return
+      }
+
       const currentDraft = draft || {
         id: draftStorage.generateId(),
         body: '',
@@ -167,6 +195,16 @@ export const useDraftAutoSave = (
   // 保存到本地（包含图片的 base64）
   const saveToLocal = useCallback(
     async (content: DraftContent) => {
+      const isEmpty = isEditorContentEmpty(content)
+
+      // 如果内容为空，清除本地草稿
+      if (isEmpty) {
+        draftStorage.clearLocal()
+        setDraft(null)
+        setIsDirty(false)
+        return
+      }
+
       const currentDraft = draft || {
         id: draftStorage.generateId(),
         body: '',
@@ -248,6 +286,16 @@ export const useDraftAutoSave = (
     (content: DraftContent) => {
       if (!enabled) return
 
+      // 检查内容是否为空
+      const isEmpty = isEditorContentEmpty(content)
+
+      // 如果内容为空且当前没有草稿（或当前草稿也是空的），不要启动自动保存定时器
+      // 这样可以防止页面刚加载时（编辑器初始化产生空内容）就触发保存
+      if (isEmpty && (!draft || isStoredDraftEmpty(draft))) {
+        contentRef.current = content
+        return
+      }
+
       contentRef.current = content
 
       // 清除之前的定时器
@@ -273,7 +321,7 @@ export const useDraftAutoSave = (
         }
       }, AUTO_SAVE_INTERVAL)
     },
-    [enabled, saveToLocal, syncToCloud]
+    [enabled, saveToLocal, syncToCloud, draft]
   )
 
   // 立即保存草稿（退出时调用）
