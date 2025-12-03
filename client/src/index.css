@@ -117,6 +117,16 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  html,
+  body {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  ::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @layer utilities {
