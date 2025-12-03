@@ -140,13 +140,21 @@ export const uploadImages = async (
       })),
     }
     const batch = await api.post('/upload/request-urls', reqBody)
-    const items: { uploadUrl: string; publicUrl: string }[] = batch.data.items
+    const items: {
+      uploadUrl: string
+      publicUrl: string
+      cacheControl?: string
+    }[] = batch.data.items
 
     // 上传到 Aliyun OSS
     await Promise.all(
       items.map((it, idx) =>
         axios.put(it.uploadUrl, compressedImagesWithDims[idx].file, {
-          headers: { 'Content-Type': compressedImagesWithDims[idx].file.type },
+          headers: {
+            'Content-Type': compressedImagesWithDims[idx].file.type,
+            // 设置缓存控制，使 CDN/浏览器缓存 1 年
+            'Cache-Control': it.cacheControl || 'public, max-age=31536000',
+          },
         })
       )
     )

@@ -5,6 +5,9 @@ import getOssClient from '../services/storageService.js'
 
 const router = Router()
 
+// 缓存控制：1 年 (31536000 秒)
+const CACHE_CONTROL = 'public, max-age=31536000'
+
 // 授权客户端直接将文件上传到云存储
 router.post('/request-url', auth, async (req: AuthRequest, res, next) => {
   try {
@@ -40,7 +43,13 @@ router.post('/request-url', auth, async (req: AuthRequest, res, next) => {
       ? `https://${cdnDomain}/${objectName}`
       : `https://${bucket}.${region}.aliyuncs.com/${objectName}`
 
-    return res.json({ uploadUrl, publicUrl, objectName, expires })
+    return res.json({
+      uploadUrl,
+      publicUrl,
+      objectName,
+      expires,
+      cacheControl: CACHE_CONTROL,
+    })
   } catch (err) {
     next(err)
   }
@@ -83,7 +92,13 @@ router.post('/request-urls', auth, async (req: AuthRequest, res, next) => {
         'Content-Type': contentType,
       })
       const publicUrl = `${baseUrl}/${objectName}`
-      return { uploadUrl, publicUrl, objectName, expires }
+      return {
+        uploadUrl,
+        publicUrl,
+        objectName,
+        expires,
+        cacheControl: CACHE_CONTROL,
+      }
     })
 
     return res.json({ items: results, expires })
