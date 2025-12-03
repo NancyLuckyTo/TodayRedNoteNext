@@ -207,6 +207,16 @@ class PostController {
           )
         : await postService.getPosts(limit, cursor, excludeIds)
 
+      // 首屏数据（未登录用户、无游标、无排除）添加 CDN 缓存
+      const isFirstPage = !currentUserId && !cursor && !excludeIds
+      if (isFirstPage) {
+        // s-maxage: CDN 缓存 60 秒; stale-while-revalidate: 后台刷新时继续使用旧数据
+        res.set(
+          'Cache-Control',
+          'public, s-maxage=60, stale-while-revalidate=300'
+        )
+      }
+
       return res.json(result)
     } catch (err) {
       next(err)

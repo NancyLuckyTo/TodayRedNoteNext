@@ -16,6 +16,19 @@ const MAX_RELATED_NOTES = 10 // 笔记详情页相关笔记最大数量
 const MAX_INTEREST_TAGS = 10 // 个性化推荐时使用的兴趣标签数量上限
 const MAX_EXCLUDE_IDS = 200 // 最大排除 ID 数量，防止查询过大
 
+// 首屏数据缓存配置
+const FIRST_PAGE_CACHE_TTL = 60 * 1000 // 缓存 60 秒
+let firstPageCache: {
+  data: any
+  timestamp: number
+  limit: number
+} | null = null
+
+// 清除首屏缓存（发布/删除帖子时调用）
+function invalidateFirstPageCache() {
+  firstPageCache = null
+}
+
 class PostService {
   /**
    * 构建分页结果
@@ -110,6 +123,9 @@ class PostService {
     }
 
     const post = await Post.create(payload)
+
+    // 清除首屏缓存，确保新笔记能被看到
+    invalidateFirstPageCache()
 
     if (payload.topic) {
       topicService.incrementTopicCount(payload.topic).catch(console.error)
@@ -550,6 +566,10 @@ class PostService {
     }
 
     await found.deleteOne()
+
+    // 清除首屏缓存
+    invalidateFirstPageCache()
+
     return true
   }
 
@@ -558,6 +578,21 @@ class PostService {
    * @param excludeIds 排除的笔记 ID 列表，用于避免重复展示
    */
   async getPosts(limit: number, cursor?: string, excludeIds?: string[]) {
+    // 首屏请求缓存优化：无 cursor 且无 excludeIds 时使用缓存
+    const isFirstPage = !cursor && (!excludeIds || excludeIds.length === 0)
+
+    if (isFirstPage) {
+      const now = Date.now()
+      if (
+        firstPageCache &&
+        firstPageCache.limit === limit &&
+        now - firstPageCache.timestamp < FIRST_PAGE_CACHE_TTL
+      ) {
+        // 命中缓存，直接返回
+        return firstPageCache.data
+      }
+    }
+
     let query: any = {}
 
     // 排除已展示的笔记 ID
@@ -619,11 +654,22 @@ class PostService {
       nextCursor = encodeCursor(cursorPayload)
     }
 
-    return this.buildPaginationResult(formattedPosts, {
+    const result = this.buildPaginationResult(formattedPosts, {
       nextCursor,
       hasNextPage,
       limit,
     })
+
+    // 首屏请求：写入缓存
+    if (isFirstPage) {
+      firstPageCache = {
+        data: result,
+        timestamp: Date.now(),
+        limit,
+      }
+    }
+
+    return result
   }
 
   /**
