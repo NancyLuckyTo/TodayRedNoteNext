@@ -23,12 +23,12 @@ import {
   useDraftAutoSave,
   isEditorContentEmpty,
 } from '@/hooks/useDraftAutoSave'
-import { ImageUploader } from '@/components/create-post/ImageUploader'
+import { ImageUploader } from '@/components/editPost/ImageUploader'
 import {
   RichTextEditor,
   type RichTextEditorRef,
-} from '@/components/create-post/RichTextEditor'
-import { RichTextToolbar } from '@/components/create-post/RichTextToolbar'
+} from '@/components/editPost/RichTextEditor'
+import { RichTextToolbar } from '@/components/editPost/RichTextToolbar'
 import { useKeyboardPosition } from '@/hooks/useKeyboardPosition'
 import { htmlToText, postSchema, type PostFormData } from '@/lib/postUtils'
 import api from '@/lib/api'
