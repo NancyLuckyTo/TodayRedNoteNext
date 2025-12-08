@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express'
 import { AuthRequest } from '../middleware/auth.js'
 import postService from '../services/postService.js'
 import userProfileService from '../services/userProfileService.js'
+import commentService from '../services/commentService.js'
 import jwt from 'jsonwebtoken'
 import { FETCH_LIMIT, MAX_IMAGES } from '@today-red-note/types'
 
@@ -239,6 +240,49 @@ class PostController {
       const result = await postService.getUserPosts(userId, limit, cursor)
 
       return res.json(result)
+    } catch (err) {
+      next(err)
+    }
+  }
+
+  /** 获取某条笔记的评论列表 */
+  async getComments(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params
+      const comments = await commentService.getCommentsByPostId(id)
+      return res.json({ comments })
+    } catch (err) {
+      next(err)
+    }
+  }
+
+  /** 为某条笔记新增评论 */
+  async addComment(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params
+      const userId = req.userId
+      if (!userId) {
+        return res.status(401).json({ message: 'Unauthorized' })
+      }
+
+      const { content } = req.body as { content?: string }
+
+      try {
+        const comment = await commentService.createComment(
+          id,
+          userId,
+          content || ''
+        )
+        return res.status(201).json({ comment })
+      } catch (error: any) {
+        if (error.message === 'Content required') {
+          return res.status(400).json({ message: 'Content required' })
+        }
+        if (error.message === 'Post not found') {
+          return res.status(404).json({ message: 'Post not found' })
+        }
+        throw error
+      }
     } catch (err) {
       next(err)
     }

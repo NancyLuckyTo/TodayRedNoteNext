@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation, type Location } from 'react-router-dom'
 import api from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
 import { useHomeStore } from '@/stores/homeStore'
@@ -19,6 +19,8 @@ import { Button } from '@/components/ui/button'
 
 const LoginPage = () => {
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = (location.state as { from?: Location } | null)?.from
   const setToken = useAuthStore(s => s.setToken)
   const setUser = useAuthStore(s => s.setUser)
   const resetHome = useHomeStore(s => s.reset)
@@ -55,7 +57,7 @@ const LoginPage = () => {
           })
           .catch(() => undefined)
         resetHome()
-        navigate('/')
+        navigate(from || '/', { replace: true })
       }
     } catch (err) {
       console.error(err)

@@ -205,8 +205,12 @@ export default function PostDetailPage() {
 
       {/* 笔记列表容器 */}
       <main className="flex-1 overflow-y-auto bg-gray-100">
-        {posts.map(post => (
-          <PostDetailItem key={post._id} post={post} />
+        {posts.map((post, index) => (
+          <PostDetailItem
+            key={post._id}
+            post={post}
+            defaultCommentsOpen={index === 0}
+          />
         ))}
 
         {/* 底部加载触发器 */}

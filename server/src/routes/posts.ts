@@ -19,6 +19,12 @@ router.get('/:id', postController.getOne)
 // 获取相关推荐笔记
 router.get('/:id/related', postController.getRelated)
 
+// 获取笔记评论列表
+router.get('/:id/comments', postController.getComments)
+
+// 新增笔记评论
+router.post('/:id/comments', auth, postController.addComment)
+
 // 更新笔记
 router.put('/:id', auth, postController.update)
 

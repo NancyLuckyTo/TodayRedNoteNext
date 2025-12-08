@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Share, MessageSquare, Heart, Star, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,17 +24,32 @@ import type { IPost } from '@today-red-note/types'
 import { RichTextEditor } from '@/components/editPost/RichTextEditor'
 import { useAuthStore } from '@/stores/auth'
 import { useDeletePost } from '@/hooks/useDeletePost'
+import { usePostComments } from '@/hooks/usePostComments'
+import { useAddComment } from '@/hooks/useAddComment'
 
 interface PostDetailItemProps {
   post: IPost
+  defaultCommentsOpen?: boolean
 }
 
-export function PostDetailItem({ post }: PostDetailItemProps) {
+export function PostDetailItem({
+  post,
+  defaultCommentsOpen = false,
+}: PostDetailItemProps) {
   const { author, body, images, likesCount = 0, createdAt } = post
   const navigate = useNavigate()
+  const location = useLocation()
   const user = useAuthStore(state => state.user)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [commentsOpen, setCommentsOpen] = useState(defaultCommentsOpen)
+  const [commentContent, setCommentContent] = useState('')
+
+  const { data: comments = [], isLoading: commentsLoading } = usePostComments(
+    post._id,
+    true
+  )
+  const { mutate: addComment, isPending: isAdding } = useAddComment(post._id)
 
   const { mutate: deletePost, isPending: isDeleting } = useDeletePost()
 
@@ -56,6 +72,23 @@ export function PostDetailItem({ post }: PostDetailItemProps) {
   const confirmDelete = () => {
     deletePost(post._id)
     setShowDeleteDialog(false)
+  }
+
+  const handleSubmitComment = () => {
+    // 未登录，先跳转到登录页，并记录当前路径
+    if (!user) {
+      navigate('/login', { state: { from: location } })
+      return
+    }
+
+    const content = commentContent.trim()
+    if (!content) return
+
+    addComment(content, {
+      onSuccess: () => {
+        setCommentContent('')
+      },
+    })
   }
 
   return (
@@ -206,9 +239,12 @@ export function PostDetailItem({ post }: PostDetailItemProps) {
           <Share className="h-5 w-5" />
         </div>
 
-        <div className="flex flex-1 items-center justify-center gap-1">
+        <div
+          className="flex flex-1 items-center justify-center gap-1 cursor-pointer"
+          onClick={() => setCommentsOpen(prev => !prev)}
+        >
           <MessageSquare className="h-5 w-5" />
-          <span className="text-xs">15</span>
+          <span className="text-xs">{comments.length}</span>
         </div>
 
         <div className="flex flex-1 items-center justify-center gap-1">
@@ -221,6 +257,72 @@ export function PostDetailItem({ post }: PostDetailItemProps) {
           <span className="text-xs">18</span>
         </div>
       </div>
+
+      {commentsOpen && (
+        <div className="px-4 pb-3 space-y-2">
+          <div className="h-px bg-border bg-border-gray-100 my-4"></div>
+          {commentsLoading ? (
+            <span className="text-xs text-muted-foreground flex justify-around">
+              评论加载中...
+            </span>
+          ) : comments.length === 0 ? (
+            <span className="text-s text-muted-foreground flex justify-center my-12">
+              还没有评论，来抢沙发吧！
+            </span>
+          ) : (
+            <div className="space-y-4">
+              {comments.map(comment => (
+                <div key={comment._id} className="flex gap-2">
+                  <img
+                    src={
+                      comment.author.avatar ||
+                      getDefaultAvatar(comment.author.username)
+                    }
+                    alt={comment.author.username}
+                    className="h-7 w-7 rounded-full object-cover border border-border"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium">
+                        {comment.author.username}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Intl.DateTimeFormat('zh-CN', {
+                          month: '2-digit',
+                          day: '2-digit',
+                        })
+                          .format(new Date(comment.createdAt))
+                          .replace(/\//g, '-')}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs wrap-break-word">
+                      {comment.content}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 mt-4">
+            <Input
+              value={commentContent}
+              onChange={e => setCommentContent(e.target.value)}
+              placeholder="友善发言，一起交流吧"
+              className="h-8 text-xs flex-1 min-w-0"
+            />
+            <Button
+              variant="default"
+              size="sm"
+              className="h-8 px-3 text-xs bg-red-500 disabled:bg-muted disabled:text-muted-foreground"
+              disabled={isAdding || !commentContent.trim()}
+              onClick={handleSubmitComment}
+            >
+              {isAdding ? '发送中...' : '发布'}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
