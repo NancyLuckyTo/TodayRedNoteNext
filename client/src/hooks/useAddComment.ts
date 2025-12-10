@@ -1,26 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { toast } from '@/components/ui/toast'
-
-type Comment = {
-  _id: string
-  post: string
-  author: {
-    _id: string
-    username: string
-    avatar?: string
-  }
-  content: string
-  createdAt: string
-  updatedAt: string
-}
+import { type IComment } from '@today-red-note/types'
 
 export const useAddComment = (postId: string) => {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (content: string) => {
-      const { data } = await api.post<{ comment: Comment }>(
+      const { data } = await api.post<{ comment: IComment }>(
         `/posts/${postId}/comments`,
         { content }
       )

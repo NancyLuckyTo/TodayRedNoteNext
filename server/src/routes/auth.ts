@@ -48,7 +48,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     // 验证密码
-    const ok = await (user as any).comparePassword(password)
+    const ok = await user.comparePassword(password)
     if (!ok) {
       // 密码不匹配
       return res.status(401).json({ message: 'invalid credentials' })
@@ -62,7 +62,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     // 验证通过，创建并签署 JWT
-    const token = jwt.sign({ userId: (user as any)._id.toString() }, secret, {
+    const token = jwt.sign({ userId: user.id }, secret, {
       expiresIn: '7d',
     })
     return res.json({ token })

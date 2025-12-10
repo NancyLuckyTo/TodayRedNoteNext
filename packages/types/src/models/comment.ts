@@ -1,4 +1,4 @@
-import type { IAuthor } from './post.js'
+import { type IAuthor } from './post.js'
 
 export interface IComment {
   _id: string
