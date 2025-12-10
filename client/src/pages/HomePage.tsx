@@ -10,6 +10,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { HomePageSkeleton } from '@/components/PostCardSkeleton'
 import { useHomeStore } from '@/stores/homeStore'
 import { usePullToRefresh } from '@/hooks/usePullToRefresh'
+import { PublishingBanner } from '@/components/PublishingBanner'
 import { useDebugRootMargin } from '@/hooks/useDebugRootMargin'
 import { FETCH_LIMIT, PRIORITY_LIMIT } from '@today-red-note/types'
 
@@ -260,6 +261,9 @@ const HomePage = () => {
           <h1 className="text-base font-normal">发现</h1>
         </div>
       </div>
+
+      {/* 发布进度横幅 */}
+      <PublishingBanner />
 
       {/* 可滚动的内容区域 */}
       <div

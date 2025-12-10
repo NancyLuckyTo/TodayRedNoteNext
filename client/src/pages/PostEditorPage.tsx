@@ -33,6 +33,7 @@ import { useKeyboardPosition } from '@/hooks/useKeyboardPosition'
 import { htmlToText, postSchema, type PostFormData } from '@/lib/postUtils'
 import api from '@/lib/api'
 import { BODY_MAX_LENGTH, BODY_PREVIEW_MAX_LENGTH } from '@/constants/post'
+import { usePublishingStore } from '@/stores/publishingStore'
 
 /**
  * 统一的笔记编辑器页面
@@ -44,6 +45,9 @@ const PostEditorPage = () => {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
   const isEditMode = Boolean(id)
+
+  // 发布进度状态
+  const { startPublishing } = usePublishingStore()
 
   const editorRef = useRef<RichTextEditorRef>(null)
   const [editorInstance, setEditorInstance] = useState<Editor | null>(null)
@@ -291,11 +295,28 @@ const PostEditorPage = () => {
         existingImages,
       })
     } else {
-      createPost({
-        data: postData,
-        images: newImages,
-        existingImages, // 草稿中已上传的图片
-      })
+      // 新建模式：获取封面图，启动发布状态，立即跳转首页
+      const coverImage = existingImages[0] || (newImages[0]?.previewUrl ?? null)
+
+      // 启动发布进度状态
+      startPublishing(coverImage)
+
+      // 清除草稿并重置状态
+      clearDraft()
+      resetImages()
+      setEditorContent('')
+
+      // 立即跳转到首页
+      navigate('/')
+
+      // 使用 setTimeout 确保跳转后再开始发布
+      setTimeout(() => {
+        createPost({
+          data: postData,
+          images: newImages,
+          existingImages,
+        })
+      }, 100)
     }
   }
 
