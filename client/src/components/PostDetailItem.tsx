@@ -1,8 +1,17 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Share, MessageSquare, Heart, Star, Pencil, Trash2 } from 'lucide-react'
+import {
+  Share,
+  MessageCircleMore,
+  MessageCircleHeart,
+  Heart,
+  Star,
+  Pencil,
+  Trash2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Spinner } from '@/components/ui/spinner'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -243,7 +252,7 @@ export function PostDetailItem({
           className="flex flex-1 items-center justify-center gap-1 cursor-pointer"
           onClick={() => setCommentsOpen(prev => !prev)}
         >
-          <MessageSquare className="h-5 w-5" />
+          <MessageCircleMore className="h-5 w-5" />
           <span className="text-xs">{comments.length}</span>
         </div>
 
@@ -260,15 +269,23 @@ export function PostDetailItem({
 
       {commentsOpen && (
         <div className="px-4 pb-3 space-y-2">
-          <div className="h-px bg-border bg-border-gray-100 my-4"></div>
-          {commentsLoading ? (
-            <span className="text-xs text-muted-foreground flex justify-around">
-              评论加载中...
-            </span>
-          ) : comments.length === 0 ? (
-            <span className="text-s text-muted-foreground flex justify-center my-12">
-              还没有评论，来抢沙发吧！
-            </span>
+          <div className="flex items-center justify-center my-4">
+            <div className="h-px w-20 bg-linear-to-r from-transparent via-border to-transparent" />
+          </div>
+
+          {commentsLoading || comments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-3">
+              <div className="flex items-center justify-center h-16 w-16 rounded-full bg-secondary/80">
+                {commentsLoading ? (
+                  <Spinner className="size-6 text-muted-foreground" />
+                ) : (
+                  <MessageCircleHeart className="h-9 w-9 text-red-300" />
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                发条评论表达你的想法吧
+              </span>
+            </div>
           ) : (
             <div className="space-y-4">
               {comments.map(comment => (
@@ -304,17 +321,17 @@ export function PostDetailItem({
             </div>
           )}
 
-          <div className="flex items-center gap-2 mt-4">
+          <div className="flex items-center mt-4 rounded-full bg-secondary px-1">
             <Input
               value={commentContent}
               onChange={e => setCommentContent(e.target.value)}
-              placeholder="友善发言，一起交流吧"
-              className="h-8 text-xs flex-1 min-w-0"
+              placeholder="发条评论，说说你的感受"
+              className="h-auto border-0 bg-transparent text-sm min-w-0"
             />
             <Button
               variant="default"
               size="sm"
-              className="h-8 px-3 text-xs bg-red-500 disabled:bg-muted disabled:text-muted-foreground"
+              className="h-6 rounded-full text-xs bg-red-500 disabled:bg-muted disabled:text-muted-foreground"
               disabled={isAdding || !commentContent.trim()}
               onClick={handleSubmitComment}
             >
