@@ -196,9 +196,9 @@ export async function getSession() {
 
 > 目标：将 Express 路由转换为 Next.js Route Handlers。
 
-#### 3.1 认证 API (`src/app/api/auth/[...action]/route.ts`)
+#### 3.1 认证 API (`src/app/api/auth/login/route.ts`)
 
-或者拆分为：
+拆分为：
 
 - `src/app/api/auth/login/route.ts`
 - `src/app/api/auth/register/route.ts`
