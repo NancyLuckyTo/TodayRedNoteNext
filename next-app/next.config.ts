@@ -1,7 +1,17 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'today-red-note.oss-cn-hongkong.aliyuncs.com',
+      },
+    ],
+  },
+  experimental: {
+    serverComponentsExternalPackages: ['mongoose'], // 解决 Mongoose 在开发环境的热重载连接问题
+  },
+}
 
-export default nextConfig;
+export default nextConfig
