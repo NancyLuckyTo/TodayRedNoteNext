@@ -36,7 +36,7 @@ export function usePullToRefresh({
   const startYRef = useRef(0) // 手指按下时的 Y 坐标
   const isTrackingRef = useRef(false) // 是否正在跟踪触摸
   const currentDistanceRef = useRef(0) // 当前拉动的距离
-  const rafIdRef = useRef<number | null>(null) // requestAnimationFrame 的 ID，用于取消动画
+  const rAFIdRef = useRef<number | null>(null) // requestAnimationFrame 的 ID，用于取消动画
 
   // 解决闭包陷阱：保证 useEffect 内部能访问到最新的 state 和 onRefresh 函数
   const stateRef = useRef(state)
@@ -103,10 +103,10 @@ export function usePullToRefresh({
       const isReady = resistedDistance >= PULL_THRESHOLD // 判断是否到达了触发刷新的阈值
 
       // 使用 rAF 节流 DOM 更新：避免一帧内多次操作 DOM，保证与屏幕的刷新率同步
-      if (rafIdRef.current === null) {
-        rafIdRef.current = requestAnimationFrame(() => {
+      if (rAFIdRef.current === null) {
+        rAFIdRef.current = requestAnimationFrame(() => {
           updateIndicatorDOM(currentDistanceRef.current)
-          rafIdRef.current = null
+          rAFIdRef.current = null
         })
       }
 
@@ -122,9 +122,9 @@ export function usePullToRefresh({
       isTrackingRef.current = false
 
       // 取消待执行的 rAF，清理还没执行的动画帧
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current)
-        rafIdRef.current = null
+      if (rAFIdRef.current !== null) {
+        cancelAnimationFrame(rAFIdRef.current)
+        rAFIdRef.current = null
       }
 
       // 如果松手时已经是 ready 状态，则触发刷新
@@ -154,8 +154,8 @@ export function usePullToRefresh({
     container.addEventListener('touchcancel', handleTouchEnd, { passive: true })
 
     return () => {
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current)
+      if (rAFIdRef.current !== null) {
+        cancelAnimationFrame(rAFIdRef.current)
       }
       container.removeEventListener('touchstart', handleTouchStart)
       container.removeEventListener('touchmove', handleTouchMove)
