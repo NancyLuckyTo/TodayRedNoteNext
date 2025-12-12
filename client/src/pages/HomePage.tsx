@@ -12,7 +12,7 @@ import { useHomeStore } from '@/stores/homeStore'
 import { usePullToRefresh } from '@/hooks/usePullToRefresh'
 import { PublishingBanner } from '@/components/PublishingBanner'
 import { useDebugRootMargin } from '@/hooks/useDebugRootMargin'
-import { FETCH_LIMIT, PRIORITY_LIMIT } from '@today-red-note/types'
+import { FETCH_LIMIT, PRIORITY_LIMIT, type IPost } from '@today-red-note/types'
 
 // 声明 window 上的预取数据类型
 declare global {
@@ -41,6 +41,7 @@ const HomePage = () => {
   const [isInitialLoading, setIsInitialLoading] = useState(false) // 首次加载状态
   const [isLoadingMore, setIsLoadingMore] = useState(false) // 加载更多状态
   const [error, setError] = useState<string | null>(null)
+  const [containerHeight, setContainerHeight] = useState(window.innerHeight) // 容器高度，用于虚拟化
 
   // 移动端竖屏场景，宽度固定，直接计算一次
   // 逻辑：(屏幕宽度 - 左右padding 8px - 中间gap 4px) / 2
@@ -170,11 +171,25 @@ const HomePage = () => {
   // 下拉刷新指示器 ref
   const indicatorRef = useRef<HTMLDivElement>(null)
 
-  // 恢复滚动位置
+  // 恢复滚动位置 + 初始化容器高度 (使用 ResizeObserver)
   useEffect(() => {
-    if (scrollContainerRef.current && scrollPosition > 0) {
-      scrollContainerRef.current.scrollTop = scrollPosition
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    // 恢复滚动位置
+    if (scrollPosition > 0) {
+      container.scrollTop = scrollPosition
     }
+
+    // 使用 ResizeObserver 监听容器高度变化
+    const observer = new ResizeObserver(entries => {
+      if (entries[0]) {
+        setContainerHeight(entries[0].contentRect.height)
+      }
+    })
+
+    observer.observe(container)
+    return () => observer.disconnect()
     // eslint-disable-next-line
   }, [])
 
@@ -253,6 +268,36 @@ const HomePage = () => {
     return () => observer.disconnect() // 组件卸载或依赖变化时销毁监听
   }, [hasNextPage, isLoadingMore, handleLoadMore, rootMargin])
 
+  // 预计算高度，避免渲染时重复计算
+  // 只有当 posts 变化时才重新计算
+  const postsWithMeta = useMemo(() => {
+    return posts.map(post => ({
+      ...post,
+      _estimatedHeight: calculatePostHeight(post, columnWidth),
+    }))
+  }, [posts, columnWidth])
+
+  const renderPostItem = useCallback(
+    (post: IPost & { _estimatedHeight: number }, index: number) => {
+      return (
+        <PostCard
+          post={post}
+          onClick={() => handlePostClick(post._id)}
+          priority={index < PRIORITY_LIMIT}
+          // 瀑布流容器已经做了虚拟化（只渲染可见区域+缓冲区），因此对于渲染出来的卡片，需要图片尽快加载，避免二次闪烁
+          loading="eager"
+        />
+      )
+    },
+    [handlePostClick]
+  )
+
+  const getPostKey = useCallback((post: IPost) => post._id, [])
+  const estimatePostHeight = useCallback(
+    (post: IPost & { _estimatedHeight: number }) => post._estimatedHeight,
+    []
+  )
+
   return (
     <div className="flex flex-col h-dvh overflow-hidden bg-gray-100">
       {/* 顶部导航栏 */}
@@ -279,18 +324,14 @@ const HomePage = () => {
 
         {/* 瀑布流容器 */}
         {!isEmpty && (
-          <WaterfallContainer>
-            {posts.map((post, index) => (
-              <PostCard
-                key={post._id}
-                post={post}
-                onClick={() => handlePostClick(post._id)}
-                // 将计算好的列宽传入，算出卡片高度，传给 WaterfallContainer 进行布局
-                data-waterfall-height={calculatePostHeight(post, columnWidth)}
-                priority={index < PRIORITY_LIMIT}
-              />
-            ))}
-          </WaterfallContainer>
+          <WaterfallContainer
+            items={postsWithMeta}
+            renderItem={renderPostItem}
+            getItemKey={getPostKey}
+            estimateHeight={estimatePostHeight}
+            scrollTop={scrollPosition}
+            containerHeight={containerHeight}
+          />
         )}
 
         {/* 底部错误提示 */}

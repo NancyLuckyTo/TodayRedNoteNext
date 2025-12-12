@@ -12,7 +12,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { useProfilePostsStore } from '@/stores/profilePostsStore'
 import type { PostsResponse } from '@/types/posts'
 import { ROOT_MARGIN_VALUE } from '@/constants/post'
-import { FETCH_LIMIT, PRIORITY_LIMIT } from '@today-red-note/types'
+import { FETCH_LIMIT, PRIORITY_LIMIT, type IPost } from '@today-red-note/types'
 
 const ProfilePage = () => {
   const navigate = useNavigate()
@@ -45,6 +45,7 @@ const ProfilePage = () => {
   const [hasLoadedInitial, setHasLoadedInitial] = useState(false)
 
   const columnWidth = (window.innerWidth - 12) / 2
+  const containerHeight = window.innerHeight
 
   const isEmpty = useMemo(
     () => !posts.length && !isInitialLoading && hasLoadedInitial,
@@ -169,6 +170,33 @@ const ProfilePage = () => {
     observer.observe(element)
     return () => observer.disconnect()
   }, [activeTab, hasNextPage, isLoadingMore, handleLoadMore])
+
+  const postsWithMeta = useMemo(() => {
+    return posts.map(post => ({
+      ...post,
+      _estimatedHeight: calculatePostHeight(post, columnWidth),
+    }))
+  }, [posts, columnWidth])
+
+  const renderPostItem = useCallback(
+    (post: IPost & { _estimatedHeight: number }, index: number) => {
+      return (
+        <PostCard
+          post={post}
+          onClick={() => handlePostClick(post._id)}
+          priority={index < PRIORITY_LIMIT}
+        />
+      )
+    },
+    [handlePostClick]
+  )
+
+  const getPostKey = useCallback((post: IPost) => post._id, [])
+
+  const estimatePostHeight = useCallback(
+    (post: IPost & { _estimatedHeight: number }) => post._estimatedHeight,
+    []
+  )
 
   return (
     <div className="min-h-screen">
@@ -301,20 +329,14 @@ const ProfilePage = () => {
               ) : null}
 
               {!isEmpty && (
-                <WaterfallContainer>
-                  {posts.map((post, index) => (
-                    <PostCard
-                      key={post._id}
-                      post={post}
-                      onClick={() => handlePostClick(post._id)}
-                      data-waterfall-height={calculatePostHeight(
-                        post,
-                        columnWidth
-                      )}
-                      priority={index < PRIORITY_LIMIT}
-                    />
-                  ))}
-                </WaterfallContainer>
+                <WaterfallContainer
+                  items={postsWithMeta}
+                  renderItem={renderPostItem}
+                  getItemKey={getPostKey}
+                  estimateHeight={estimatePostHeight}
+                  scrollTop={scrollPosition}
+                  containerHeight={containerHeight}
+                />
               )}
 
               {isEmpty && !error && (

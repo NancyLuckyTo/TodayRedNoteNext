@@ -16,8 +16,47 @@ const IMAGE_RATIO_META: Record<
 }
 
 const BASE_CARD_OFFSET = 24 // 作者信息与点赞所占高度
-const TEXT_LINE_HEIGHT = 18 // 预览正文的行高
+const TEXT_LINE_HEIGHT = 20 // 预览正文的行高 (text-sm = 20px)
+const BODY_PADDING = 16 // 正文区域上下 padding (py-2 = 8px * 2)
 const MAX_BODY_LINES = 2 // 预览正文的最大行数
+const CARD_HORIZONTAL_PADDING = 24 // 卡片左右 padding (px-3 = 12px * 2)
+const CHINESE_CHAR_VISUAL_WIDTH = 14
+const OTHER_CHAR_VISUAL_WIDTH = 7.7
+const CHINESE_CHAR_REGEX = /[\u4e00-\u9fa5]/
+
+const estimateBodyHeight = (body: string, columnWidth: number) => {
+  const availableWidth = columnWidth - CARD_HORIZONTAL_PADDING
+  if (availableWidth <= 0) {
+    return 0
+  }
+
+  const maxVisualLength = availableWidth * MAX_BODY_LINES
+  let visualLength = 0
+
+  for (const char of body) {
+    visualLength += CHINESE_CHAR_REGEX.test(char)
+      ? CHINESE_CHAR_VISUAL_WIDTH
+      : OTHER_CHAR_VISUAL_WIDTH
+
+    if (visualLength >= maxVisualLength) {
+      visualLength = maxVisualLength
+      break
+    }
+  }
+
+  if (visualLength <= 0) {
+    return 0
+  }
+
+  const lines = Math.ceil(visualLength / availableWidth)
+  const clampedLines = Math.min(lines, MAX_BODY_LINES)
+
+  if (clampedLines <= 0) {
+    return 0
+  }
+
+  return clampedLines * TEXT_LINE_HEIGHT + BODY_PADDING
+}
 
 /**
  * 计算瀑布流卡片高度
@@ -38,9 +77,15 @@ export const calculatePostHeight = (post: IPost, columnWidth: number) => {
     ? aspectMeta.heightRatio * columnWidth
     : 0
 
-  const estimatedBodyHeight = hasBody
-    ? Math.min(Math.ceil(body.length / 40), MAX_BODY_LINES) * TEXT_LINE_HEIGHT
-    : 0
+  let estimatedBodyHeight = 0
+  if (hasBody) {
+    // 计算可用文本宽度
+    // 计算文本视觉长度
+    // 中文字符算 1em (14px)，非中文字符算 0.55em (7.7px)
+    // 使用 codePointAt 判断范围更准确，但正则足够通用
+    // 计算行数
+    estimatedBodyHeight = estimateBodyHeight(body, columnWidth)
+  }
 
   return BASE_CARD_OFFSET + estimatedImageHeight + estimatedBodyHeight
 }

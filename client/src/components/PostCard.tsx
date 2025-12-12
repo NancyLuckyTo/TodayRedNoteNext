@@ -11,9 +11,15 @@ interface PostCardProps {
   onClick?: () => void
   'data-waterfall-height'?: number
   priority?: boolean
+  loading?: 'lazy' | 'eager'
 }
 
-export function PostCard({ post, onClick, priority = false }: PostCardProps) {
+export function PostCard({
+  post,
+  onClick,
+  priority = false,
+  loading,
+}: PostCardProps) {
   const { author, body, bodyPreview, images, likesCount = 0 } = post
   const [imageError, setImageError] = useState(false)
 
@@ -29,6 +35,13 @@ export function PostCard({ post, onClick, priority = false }: PostCardProps) {
   // 正文预览，使用 bodyPreview 字段，如果不存在则从 HTML 中提取
   const preview = hasBody ? bodyPreview || htmlToText(body) : ''
 
+  // 确定加载策略：
+  // 1. 如果显式传入 loading，则使用传入值
+  // 2. 否则如果 priority 为 true，则使用 eager
+  // 3. 否则使用 lazy
+  const loadingStrategy = loading || (priority ? 'eager' : 'lazy')
+  const fetchPriority = priority ? 'high' : 'auto'
+
   return (
     <Card className="overflow-hidden" onClick={onClick}>
       {/* 封面图 */}
@@ -39,8 +52,8 @@ export function PostCard({ post, onClick, priority = false }: PostCardProps) {
               src={firstImage}
               alt="Post cover"
               className="h-full w-full object-cover"
-              loading={priority ? 'eager' : 'lazy'}
-              fetchPriority={priority ? 'high' : 'auto'}
+              loading={loadingStrategy}
+              fetchPriority={fetchPriority}
               onError={() => setImageError(true)}
             />
           ) : (
