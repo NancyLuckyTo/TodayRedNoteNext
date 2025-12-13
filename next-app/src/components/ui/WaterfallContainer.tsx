@@ -195,7 +195,7 @@ export function WaterfallContainer<T>({
   const rightRenderInfo = getColumnRenderInfo(rightColumn, columnHeights[1])
 
   return (
-    <div className="flex w-full gap-1 bg-gray-100 px-1 py-1">
+    <div className="flex w-full gap-1 bg-gray-50 px-1 py-1">
       {/* 左列容器 */}
       <div
         className="flex flex-1 flex-col gap-1 min-w-0"

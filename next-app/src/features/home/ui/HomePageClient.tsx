@@ -279,9 +279,9 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
   )
 
   return (
-    <div className="flex flex-col h-dvh overflow-hidden bg-gray-100">
+    <div className="flex flex-col h-dvh overflow-hidden">
       {/* 顶部导航栏 */}
-      <div className="flex-none z-10 bg-background border-b border-gray-200 px-4 py-2">
+      <div className="flex-none z-10 bg-background border-b border-gray-100 px-4 py-2">
         <div className="flex items-center justify-center">
           <h1 className="text-base font-normal">发现</h1>
         </div>

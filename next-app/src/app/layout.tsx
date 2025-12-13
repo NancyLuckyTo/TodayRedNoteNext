@@ -1,10 +1,11 @@
 import './globals.css'
 import { Providers } from '@/components/providers/Providers'
 import BottomNav from '@/components/layout/BottomNav'
+import { GlobalPublisher } from '@/components/features/GlobalPublisher'
 
 export const metadata = {
-  title: 'Today Red Note',
-  description: 'A Red Note clone built with Next.js',
+  title: '今日红书 - 你的头条指南',
+  description: '你想看的奇闻趣事都在这里！',
 }
 
 export default function RootLayout({
@@ -16,8 +17,9 @@ export default function RootLayout({
     <html lang="zh-CN" suppressHydrationWarning>
       <body>
         <Providers>
-          <div className="flex min-h-screen justify-center bg-gray-100 dark:bg-zinc-950">
-            <div className="relative w-full max-w-md min-h-screen bg-white dark:bg-zinc-900 shadow-lg">
+          <GlobalPublisher />
+          <div className="flex min-h-screen justify-center bg-gray-50">
+            <div className="relative w-full max-w-md min-h-screen shadow-lg">
               {children}
             </div>
           </div>

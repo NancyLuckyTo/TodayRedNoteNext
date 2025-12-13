@@ -1,6 +1,16 @@
 import { create } from 'zustand'
+import type { PostFormData } from '@/lib/postUtils'
+import type { SelectedImage } from '@/hooks/useImageSelection'
 
 export type PublishingStatus = 'idle' | 'uploading' | 'success' | 'error'
+
+interface PublishingTask {
+  data: PostFormData
+  images: SelectedImage[]
+  existingImages: string[]
+  draftId?: string
+  cloudDraftId?: string
+}
 
 interface PublishingState {
   status: PublishingStatus
@@ -8,8 +18,10 @@ interface PublishingState {
   coverImage: string | null // 封面图 URL
   postId: string | null // 发布成功后的笔记 ID
   errorMessage: string | null
+  publishingTask: PublishingTask | null
 
   startPublishing: (coverImage: string | null) => void
+  setPublishingTask: (task: PublishingTask) => void
   updateCoverImage: (url: string) => void
   updateProgress: (progress: number) => void
   setSuccess: (postId: string) => void
@@ -23,6 +35,7 @@ export const usePublishingStore = create<PublishingState>(set => ({
   coverImage: null,
   postId: null,
   errorMessage: null,
+  publishingTask: null,
 
   startPublishing: (coverImage: string | null) =>
     set({
@@ -32,6 +45,8 @@ export const usePublishingStore = create<PublishingState>(set => ({
       postId: null,
       errorMessage: null,
     }),
+
+  setPublishingTask: (task: PublishingTask) => set({ publishingTask: task }),
 
   updateCoverImage: (url: string) => set({ coverImage: url }),
 
@@ -47,6 +62,7 @@ export const usePublishingStore = create<PublishingState>(set => ({
       status: 'success',
       progress: 100,
       postId,
+      publishingTask: null, // Clear task on success
     }),
 
   setError: (message: string) =>
@@ -62,5 +78,6 @@ export const usePublishingStore = create<PublishingState>(set => ({
       coverImage: null,
       postId: null,
       errorMessage: null,
+      publishingTask: null,
     }),
 }))

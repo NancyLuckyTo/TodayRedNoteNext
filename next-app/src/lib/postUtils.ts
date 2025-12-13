@@ -6,6 +6,7 @@ import type { SelectedImage } from '@/hooks/useImageSelection'
 import { compressImages } from '@/lib/imageUtils'
 import api from '@/lib/api'
 import { BODY_MAX_LENGTH, IMAGE_MAX_WIDTH } from '@/constants/post'
+import { usePublishingStore } from '@/stores/publishingStore'
 
 const IMAGE_RATIO_META: Record<
   ImageRatio,
@@ -199,15 +200,39 @@ export const uploadImages = async (
     }[] = batch.data.items
 
     // 上传到 Aliyun OSS
+    let completedCount = 0
+    const totalCount = items.length
+    const updateStoreProgress = (percent: number) => {
+      usePublishingStore.getState().updateProgress(percent)
+    }
+
     await Promise.all(
       items.map((it, idx) =>
-        axios.put(it.uploadUrl, compressedImagesWithDims[idx].file, {
-          headers: {
-            'Content-Type': compressedImagesWithDims[idx].file.type,
-            // 设置缓存控制，使 CDN/浏览器缓存 1 年
-            'Cache-Control': it.cacheControl || 'public, max-age=31536000',
-          },
-        })
+        axios
+          .put(it.uploadUrl, compressedImagesWithDims[idx].file, {
+            headers: {
+              'Content-Type': compressedImagesWithDims[idx].file.type,
+              // 设置缓存控制，使 CDN/浏览器缓存 1 年
+              'Cache-Control': it.cacheControl || 'public, max-age=31536000',
+            },
+            onUploadProgress: progressEvent => {
+              if (progressEvent.total) {
+                // 计算当前文件的上传进度 (0-1)
+                // const fileProgress = progressEvent.loaded / progressEvent.total
+                // 计算总进度：已完成的文件数 + 当前正在上传文件的进度
+                // 这里做一个简单的平滑处理：总进度 = (已完成数 + 当前文件进度) / 总数 * 100
+                // 但 Promise.all 并行上传时，我们可以累加 loaded bytes，或者简单地按完成数估算
+                // 更精确的做法是：每个文件的 progress 单独维护，然后求和。
+                // 为简化，这里我们在文件上传完成时更新大进度，onUploadProgress 只做微调或忽略
+                // 或者，我们只在 upload 完成时更新
+              }
+            },
+          })
+          .then(() => {
+            completedCount++
+            const percent = Math.round((completedCount / totalCount) * 90) // 上传占 90% 进度，剩下 10% 给创建帖子接口
+            updateStoreProgress(percent)
+          })
       )
     )
 
