@@ -168,16 +168,21 @@ class PostService {
    * 获取笔记详情
    */
   async getPostById(id: string, currentUserId?: string): Promise<IPost | null> {
-    const post = await Post.findById(id)
-      .populate('author', 'username')
-      .populate('topic', 'name')
-      .populate('tags', 'name')
+    try {
+      const post = await Post.findById(id)
+        .populate('author', 'username')
+        .populate('topic', 'name')
+        .populate('tags', 'name')
 
-    if (!post) return null
+      if (!post) return null
 
-    console.log('TODO currentUserId', currentUserId)
+      console.log('TODO currentUserId', currentUserId)
 
-    return formatPostWithImages(post, IMAGE_QUALITY.PREVIEW, false) as IPost
+      return formatPostWithImages(post, IMAGE_QUALITY.PREVIEW, false) as IPost
+    } catch (error) {
+      console.error('Error in getPostById:', error)
+      return null
+    }
   }
 
   /**
@@ -760,7 +765,8 @@ class PostService {
             { updatedAt: cursorTime, _id: { $lt: cursorId } },
           ],
         }
-      } catch (err) {
+      } catch (error) {
+        console.log('Error in getUserPosts: ', error)
         query = { author: userId }
       }
     }
@@ -787,7 +793,7 @@ class PostService {
     if (hasNextPage && formattedPosts.length > 0) {
       const lastPost = formattedPosts[formattedPosts.length - 1]
       const cursorPayload: DecodedCursor = {
-        updatedAt: new Date(lastPost.updatedAt), // Convert string to Date
+        updatedAt: new Date(lastPost.updatedAt),
         _id: lastPost._id,
       }
       nextCursor = encodeCursor(cursorPayload)

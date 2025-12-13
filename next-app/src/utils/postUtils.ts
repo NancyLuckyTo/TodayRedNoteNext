@@ -12,10 +12,13 @@ const MAX_IMAGES_PER_POST = 18 // 每篇笔记最多支持 18 张图片
 /**
  * 转换为普通对象
  */
-export const toPlainPost = (post: Document | IPost): IPost =>
-  typeof (post as Document)?.toObject === 'function'
-    ? ((post as Document).toObject() as IPost)
-    : (post as IPost)
+export const toPlainPost = (post: Document | IPost): IPost => {
+  const plain =
+    typeof (post as Document)?.toObject === 'function'
+      ? (post as Document).toObject()
+      : post
+  return JSON.parse(JSON.stringify(plain)) as IPost
+}
 
 /**
  * 格式化笔记

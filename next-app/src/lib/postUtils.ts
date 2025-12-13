@@ -58,6 +58,17 @@ const estimateBodyHeight = (body: string, columnWidth: number) => {
   return clampedLines * TEXT_LINE_HEIGHT + BODY_PADDING
 }
 
+export const normalizePost = (post: IPost): IPost => ({
+  ...post,
+  images:
+    post.images
+      ?.map((img: string | { url?: string }) =>
+        typeof img === 'string' ? img : img?.url
+      )
+      .filter((url): url is string => Boolean(url)) || [],
+  coverRatio: post.coverRatio ?? IMAGE_RATIO.PORTRAIT,
+})
+
 /**
  * 计算瀑布流卡片高度
  * @param post 笔记数据
@@ -101,8 +112,6 @@ export function getAspectRatio(coverRatio: ImageRatio) {
     IMAGE_RATIO_META.portrait.aspectRatio
   )
 }
-
-
 
 /** 将 HTML 转换为纯文本 */
 export const htmlToText = (html: string): string => {
