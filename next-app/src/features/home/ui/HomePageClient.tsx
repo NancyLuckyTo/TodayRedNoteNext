@@ -70,8 +70,10 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
       }
 
       try {
-        // 获取需要排除的帖子 ID（已展示过的 + 当前展示的）
-        const excludeIds = getExcludeIds()
+        // 获取需要去重的笔记 ID（已展示过的 + 当前展示的）
+        const allExcludeIds = getExcludeIds()
+        // 限制传递给后端的去重 ID 数量，防止 URL 过长导致 431 错误，保留最近浏览的 50 条记录进行去重即可
+        const excludeIds = allExcludeIds.slice(-50)
 
         const { data } = await api.get<PostsResponse>('/posts', {
           params: {
