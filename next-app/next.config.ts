@@ -9,9 +9,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  experimental: {
-    serverComponentsExternalPackages: ['mongoose'], // 解决 Mongoose 在开发环境的热重载连接问题
-  },
+  serverExternalPackages: ['mongoose'], // 解决 Mongoose 在开发环境的热重载连接问题
 }
 
 export default nextConfig
