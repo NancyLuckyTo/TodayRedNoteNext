@@ -83,11 +83,11 @@ export const useDraftAutoSave = ({
         local = {
           id: cloud._id,
           cloudId: cloud._id,
-          user: cloud.user,
           body: cloud.body,
           topic: cloud.topic,
           uploadedImages: cloud.images,
           localImages: [],
+          createdAt: new Date(cloud.createdAt).getTime(),
           updatedAt: new Date(cloud.updatedAt).getTime(),
         }
         // 更新本地副本
@@ -134,11 +134,11 @@ export const useDraftAutoSave = ({
       const newDraft: IDraft = {
         id: draft?.id || draftStorage.generateId(),
         cloudId: draft?.cloudId,
-        user: 'current', // 会在服务端覆盖
         body,
         topic,
         uploadedImages: [...existingImages, ...uploadedUrls],
         localImages: [], // 这里简化处理，不存储 File 对象到 localStorage
+        createdAt: draft?.createdAt ?? Date.now(),
         updatedAt: Date.now(),
       }
 

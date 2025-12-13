@@ -150,14 +150,23 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
   // 下拉刷新指示器 ref
   const indicatorRef = useRef<HTMLDivElement>(null)
 
-  // 恢复滚动位置 + 初始化容器高度 (使用 ResizeObserver)
+  const hasRestoredPosition = useRef(false) // 滚动位置是否已经恢复过
+
   useEffect(() => {
     const container = scrollContainerRef.current
     if (!container) return
 
-    // 恢复滚动位置
-    if (scrollPosition > 0) {
-      container.scrollTop = scrollPosition
+    // 只有当布局准备好（columnWidth > 0）且有数据时，才尝试恢复滚动位置
+    if (columnWidth > 0 && !hasRestoredPosition.current) {
+      if (scrollPosition > 0) {
+        // 稍微延迟一下，确保 DOM 已经渲染
+        requestAnimationFrame(() => {
+          container.scrollTop = scrollPosition
+          hasRestoredPosition.current = true
+        })
+      } else {
+        hasRestoredPosition.current = true
+      }
     }
 
     // 使用 ResizeObserver 监听容器高度变化
@@ -170,7 +179,7 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
     observer.observe(container)
     return () => observer.disconnect()
     // eslint-disable-next-line
-  }, [])
+  }, [columnWidth, posts.length])
 
   // 监听滚动保存位置
   const handleScroll = useCallback(

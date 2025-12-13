@@ -5,8 +5,7 @@ import '@/server/models/userModel'
 import { formatPostWithImages } from '@/server/utils/postUtils'
 import { IMAGE_QUALITY, FETCH_LIMIT, type IPost } from '@today-red-note/types'
 
-// 强制动态渲染，因为笔记列表经常更新
-export const dynamic = 'force-dynamic'
+export const revalidate = 60 // 单位：秒
 
 export default async function Page() {
   await connectDB()
