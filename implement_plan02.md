@@ -320,10 +320,8 @@ export default async function PostPage({ params }: { params: { id: string } }) {
 
 #### 4.4 组件迁移
 
-- [COPY] `client/src/components/*` -> `next-app/src/components/*`.
 - [MODIFY] 对于交互组件（如 `WaterfallContainer`, `PostCard`），在文件顶部添加 `'use client';`。
 - [MODIFY] 将 `useNavigate` 替换为 `useRouter` (from `next/navigation`)。
-- [MODIFY] 将 `<img>` 替换为 `next/image` (可选，建议优化)。
 
 ---
 
