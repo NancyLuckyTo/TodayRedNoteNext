@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import connectDB from '@/lib/db'
-import postService from '@/services/postService'
-import { getSession } from '@/lib/auth'
+import connectDB from '@/server/db'
+import postService from '@/server/services/postService'
+import { getSession } from '@/server/auth'
 import { FETCH_LIMIT } from '@today-red-note/types'
 import { getErrorMessage } from '@/lib/utils'
 

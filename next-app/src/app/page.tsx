@@ -1,8 +1,8 @@
-import HomePageClient from '@/components/features/home/HomePageClient'
-import connectDB from '@/lib/db'
-import Post from '@/models/postModel'
-import '@/models/userModel'
-import { formatPostWithImages } from '@/utils/postUtils'
+import HomePageClient from '@/features/home/ui/HomePageClient'
+import connectDB from '@/server/db'
+import Post from '@/server/models/postModel'
+import '@/server/models/userModel'
+import { formatPostWithImages } from '@/server/utils/postUtils'
 import { IMAGE_QUALITY, FETCH_LIMIT, type IPost } from '@today-red-note/types'
 
 // 强制动态渲染，因为笔记列表经常更新

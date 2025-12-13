@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import connectDB from '@/lib/db'
-import postService from '@/services/postService'
-import userProfileService from '@/services/userProfileService'
-import { getSession } from '@/lib/auth'
+import connectDB from '@/server/db'
+import postService from '@/server/services/postService'
+import userProfileService from '@/server/services/userProfileService'
+import { getSession } from '@/server/auth'
 import { getErrorMessage } from '@/lib/utils'
 
 /**

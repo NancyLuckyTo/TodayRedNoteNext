@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import connectDB from '@/lib/db'
-import postService from '@/services/postService'
+import connectDB from '@/server/db'
+import postService from '@/server/services/postService'
 import { FETCH_LIMIT } from '@today-red-note/types'
 
 export async function GET(

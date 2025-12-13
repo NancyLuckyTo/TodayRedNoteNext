@@ -1,8 +1,8 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import connectDB from '@/lib/db'
-import postService from '@/services/postService'
-import PostDetailClient from '@/components/features/post/PostDetailClient'
+import connectDB from '@/server/db'
+import postService from '@/server/services/postService'
+import PostDetailClient from '@/features/post/ui/PostDetailPageClient'
 
 interface Props {
   params: Promise<{ id: string }>

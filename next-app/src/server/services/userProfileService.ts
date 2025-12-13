@@ -22,6 +22,9 @@ const MAX_BEHAVIOR_HISTORY = 100
 export async function getOrCreateUserProfile(
   userId: string
 ): Promise<IUserProfile> {
+  if (!Types.ObjectId.isValid(userId)) {
+    throw new Error(`Invalid userId: ${userId}`)
+  }
   const userObjectId = new Types.ObjectId(userId)
   let profile = await UserProfile.findOne({ userId: userObjectId })
 

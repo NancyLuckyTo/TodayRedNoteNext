@@ -857,7 +857,13 @@ class PostService {
     }
 
     // 画像阶段：根据用户兴趣标签召回
-    const profile = await userProfileService.getOrCreateUserProfile(userId)
+    let profile
+    try {
+      profile = await userProfileService.getOrCreateUserProfile(userId)
+    } catch (error) {
+      console.error('Failed to get user profile for recommendation:', error)
+      return this.buildFallbackFeedResult(limit, undefined, excludeIds)
+    }
 
     // 提取用户感兴趣的标签，并按权重降序排列
     const sortedInterests = Array.isArray(profile.interests)

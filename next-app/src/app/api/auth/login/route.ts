@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import connectDB from '@/lib/db'
-import User from '@/models/userModel'
+import connectDB from '@/server/db'
+import User from '@/server/models/userModel'
 import jwt from 'jsonwebtoken'
 
 // 登录请求体：只包含用户名和密码

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import connectDB from '@/lib/db'
-import Comment from '@/models/commentModel'
-import Post from '@/models/postModel'
-import { getSession } from '@/lib/auth'
+import connectDB from '@/server/db'
+import Comment from '@/server/models/commentModel'
+import Post from '@/server/models/postModel'
+import { getSession } from '@/server/auth'
 import { z } from 'zod'
 
 const MIN_COMMENT_LENGTH = 1

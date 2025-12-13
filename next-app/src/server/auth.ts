@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import jwt from 'jsonwebtoken'
 import { UserPayload } from '@today-red-note/types'
 
@@ -11,7 +11,15 @@ const JWT_SECRET = process.env.JWT_SECRET!
  */
 export async function getSession() {
   const cookieStore = await cookies()
-  const token = cookieStore.get('token')?.value
+  let token = cookieStore.get('token')?.value
+
+  if (!token) {
+    const headersList = await headers()
+    const authHeader = headersList.get('authorization')
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.slice(7)
+    }
+  }
 
   if (!token) return null // 用户未登录 或 Cookie 过期已被浏览器清除
 
