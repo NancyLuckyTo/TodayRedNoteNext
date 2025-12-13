@@ -1,5 +1,5 @@
 import { URL } from 'url'
-import type { ImageQuality, ImageRatio } from '@today-red-note/types'
+import type { ImageQuality, ImageRatio, IPost } from '@today-red-note/types'
 import {
   IMAGE_RATIO,
   IMAGE_QUALITY,
@@ -77,10 +77,13 @@ export const processImageUrl = (
 /**
  * 规范化图片数组
  */
-export const normalizeImages = (images: any[]) =>
+export const normalizeImages = (images: IPost['images']) =>
   images
-    .filter((img: any) => img && typeof img.url === 'string' && img.url)
-    .map((img: any) => ({
+    .filter(
+      (img): img is IPost['images'][number] =>
+        img && typeof img.url === 'string' && !!img.url
+    )
+    .map((img: IPost['images'][number]) => ({
       url: String(img.url),
       width:
         typeof img.width === 'number' && Number.isFinite(img.width)

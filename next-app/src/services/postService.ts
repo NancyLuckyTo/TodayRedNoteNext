@@ -3,11 +3,19 @@ import Post from '../models/postModel'
 import getOssClient from '../services/storageService'
 import { encodeCursor, decodeFeedCursor } from '../utils/cursorUtils'
 import { formatPostWithImages, applyImagesToTarget } from '../utils/postUtils'
-import { IMAGE_QUALITY } from '@today-red-note/types'
+import { IMAGE_QUALITY, type IPost } from '@today-red-note/types' // Removed ITag, ITopic, IUserProfile
 import { extractTopic, extractTags } from '../services/aiService'
 import topicService from '../services/topicService'
 import tagService from '../services/tagService'
 import userProfileService from '../services/userProfileService'
+import type {
+  CreatePostDto,
+  DecodedCursor,
+  PostsResponse,
+  UpdatePostDto,
+} from '@/types/posts'
+import type { Document, FilterQuery, Types } from 'mongoose'
+import type { IUserProfile } from '../models/userProfileModel'
 
 const MAX_RELATED_NOTES = 10 // 笔记详情页相关笔记最大数量
 const MAX_INTEREST_TAGS = 10 // 个性化推荐时使用的兴趣标签数量上限
@@ -16,12 +24,27 @@ const MAX_EXCLUDE_IDS = 200 // 最大排除 ID 数量，防止查询过大
 // 首屏数据缓存配置
 const FIRST_PAGE_CACHE_TTL = 60 * 1000 // 缓存 60 秒
 let firstPageCache: {
-  data: any
+  data: PostsResponse
   timestamp: number
   limit: number
 } | null = null
 
-// 清除首屏缓存（发布/删除帖子时调用）
+// For Mongoose document before formatting
+interface RawPostDocument extends Document {
+  author: Types.ObjectId
+  body: string
+  bodyPreview?: string
+  images: { url: string; width: number; height: number }[]
+  coverRatio: string
+  tags: Types.ObjectId[]
+  topic?: Types.ObjectId
+  topics?: Types.ObjectId[]
+  commentCount: number
+  createdAt: Date
+  updatedAt: Date
+}
+
+// 清除首屏缓存（发布/删除笔记时调用）
 function invalidateFirstPageCache() {
   firstPageCache = null
 }
@@ -31,13 +54,13 @@ class PostService {
    * 构建分页结果
    */
   private buildPaginationResult(
-    posts: any[],
+    posts: IPost[],
     pagination: {
       nextCursor: string | null
       hasNextPage: boolean
       limit: number
     }
-  ) {
+  ): PostsResponse {
     return {
       posts,
       pagination,
@@ -61,7 +84,7 @@ class PostService {
 
     let wrappedNextCursor: string | null = null
     if (basePagination.hasNextPage && basePagination.nextCursor) {
-      const payload = {
+      const payload: DecodedCursor = {
         phase: 'fallback',
         innerCursor: basePagination.nextCursor,
       }
@@ -77,7 +100,7 @@ class PostService {
   /**
    * 创建笔记
    */
-  async createPost(userId: string, data: any) {
+  async createPost(userId: string, data: CreatePostDto): Promise<IPost> {
     const { body, bodyPreview, images, topic: userTopic } = data
 
     if (!body || !String(body).trim()) {
@@ -85,26 +108,30 @@ class PostService {
     }
 
     const bodyStr = String(body).trim()
-    const payload: any = {
+    const payload: Partial<RawPostDocument> = {
       body: bodyStr,
-      author: userId,
+      author: userId as unknown as Types.ObjectId,
     }
 
-    payload.bodyPreview = bodyPreview ? bodyPreview : ''
+    if (bodyPreview) {
+      payload.bodyPreview = bodyPreview
+    }
 
-    applyImagesToTarget(payload, images)
+    if (images) {
+      applyImagesToTarget(payload as Partial<IPost>, images)
+    }
 
     // 话题处理：优先使用用户手动传入的话题，否则 AI 自动提取
     try {
       if (userTopic && typeof userTopic === 'string' && userTopic.trim()) {
         // 用户手动输入话题
         const topic = await topicService.getOrCreateTopic(userTopic.trim())
-        payload.topic = topic._id
+        payload.topic = topic._id as unknown as Types.ObjectId // Cast topic._id
       } else {
         // AI 自动提取话题
         const topicName = await extractTopic(bodyStr)
         const topic = await topicService.getOrCreateTopic(topicName)
-        payload.topic = topic._id
+        payload.topic = topic._id as unknown as Types.ObjectId // Cast topic._id
       }
     } catch (error) {
       console.error('Topic generation failed:', error)
@@ -114,7 +141,7 @@ class PostService {
     try {
       const tagNames = await extractTags(bodyStr)
       const tagIds = await tagService.getOrCreateTags(tagNames)
-      payload.tags = tagIds
+      payload.tags = tagIds as unknown as Types.ObjectId[] // Cast tagIds
     } catch (error) {
       console.error('Tag extraction failed:', error)
     }
@@ -125,20 +152,22 @@ class PostService {
     invalidateFirstPageCache()
 
     if (payload.topic) {
-      topicService.incrementTopicCount(payload.topic).catch(console.error)
+      topicService
+        .incrementTopicCount(payload.topic.toString())
+        .catch(console.error)
     }
 
     if (payload.tags && payload.tags.length > 0) {
       tagService.incrementTagCounts(payload.tags).catch(console.error)
     }
 
-    return post
+    return formatPostWithImages(post, IMAGE_QUALITY.PREVIEW, true)
   }
 
   /**
    * 获取笔记详情
    */
-  async getPostById(id: string, currentUserId?: string) {
+  async getPostById(id: string, currentUserId?: string): Promise<IPost | null> {
     const post = await Post.findById(id)
       .populate('author', 'username')
       .populate('topic', 'name')
@@ -146,7 +175,9 @@ class PostService {
 
     if (!post) return null
 
-    return formatPostWithImages(post, IMAGE_QUALITY.PREVIEW, false)
+    console.log('TODO currentUserId', currentUserId)
+
+    return formatPostWithImages(post, IMAGE_QUALITY.PREVIEW, false) as IPost
   }
 
   /**
@@ -158,8 +189,8 @@ class PostService {
     limit: number = MAX_RELATED_NOTES,
     cursor?: string,
     excludeIds?: string[]
-  ) {
-    const currentPost = await Post.findById(id)
+  ): Promise<PostsResponse | null> {
+    const currentPost: RawPostDocument | null = await Post.findById(id)
     if (!currentPost) return null
 
     // 解析 cursor 确定当前阶段
@@ -171,7 +202,7 @@ class PostService {
     let fallbackInnerCursor: string | undefined
 
     if (cursor) {
-      const decoded = decodeFeedCursor(cursor)
+      const decoded: DecodedCursor | null = decodeFeedCursor(cursor)
       if (decoded) {
         if (decoded.phase === 'related' && decoded.createdAt && decoded._id) {
           phase = 'related'
@@ -232,30 +263,30 @@ class PostService {
    * 构建 related 阶段结果（基于 tags/topic）
    */
   private async buildRelatedPhase(
-    currentPost: any,
+    currentPost: RawPostDocument,
     userId: string | undefined,
     limit: number,
     cursorCreatedAt?: Date,
     cursorId?: string,
     excludeIds?: string[]
-  ) {
+  ): Promise<PostsResponse> {
     // 构建查询条件
-    const query: any = {
+    const query: FilterQuery<RawPostDocument> = {
       _id: { $nin: excludeIds || [] },
-      $or: [] as any[],
+      $or: [] as FilterQuery<RawPostDocument>[],
     }
 
     // 标签匹配条件
     if (currentPost.tags && currentPost.tags.length > 0) {
-      query.$or.push({ tags: { $in: currentPost.tags } })
+      query.$or?.push({ tags: { $in: currentPost.tags } })
     }
     // 话题匹配条件
     if (currentPost.topic) {
-      query.$or.push({ topic: currentPost.topic })
+      query.$or?.push({ topic: currentPost.topic })
     }
 
     // 如果没有 tags 也没有 topic，直接进入画像阶段
-    if (query.$or.length === 0) {
+    if (query.$or?.length === 0) {
       return this.buildRelatedProfilePhase(
         userId,
         limit,
@@ -292,8 +323,9 @@ class PostService {
       posts.pop()
     }
 
-    const formattedPosts = posts.map((post: any) =>
-      formatPostWithImages(post, IMAGE_QUALITY.THUMBNAIL, true)
+    const formattedPosts = posts.map(
+      (post: any) =>
+        formatPostWithImages(post, IMAGE_QUALITY.THUMBNAIL, true) as IPost
     )
 
     // related 阶段还有数据
@@ -301,7 +333,7 @@ class PostService {
       const lastPost = formattedPosts[formattedPosts.length - 1]
       const nextCursor = encodeCursor({
         phase: 'related',
-        createdAt: lastPost.createdAt,
+        createdAt: new Date(lastPost.createdAt), // Convert string to Date
         _id: lastPost._id,
       })
       return this.buildPaginationResult(formattedPosts, {
@@ -325,7 +357,7 @@ class PostService {
     }
 
     // 需要从 profile/fallback 补充
-    const existingIds = new Set(formattedPosts.map((p: any) => String(p._id)))
+    const existingIds = new Set(formattedPosts.map((p: IPost) => String(p._id)))
     const profileExcludeIds = [
       ...(excludeIds || []),
       ...Array.from(existingIds),
@@ -341,7 +373,7 @@ class PostService {
 
     // 去重合并
     const dedupSupplementPosts = supplementResult.posts.filter(
-      (p: any) => !existingIds.has(String(p._id))
+      (p: IPost) => !existingIds.has(String(p._id))
     )
     const combinedPosts = [...formattedPosts, ...dedupSupplementPosts]
 
@@ -373,7 +405,7 @@ class PostService {
     cursorCreatedAt?: Date,
     cursorId?: string,
     excludeIds?: string[]
-  ) {
+  ): Promise<PostsResponse> {
     // 无用户登录，直接进入兜底流
     if (!userId) {
       return this.buildFallbackFeedResult(limit, undefined, excludeIds)
@@ -383,12 +415,17 @@ class PostService {
 
     // 提取用户感兴趣的标签
     const sortedInterests = Array.isArray(profile.interests)
-      ? [...profile.interests].sort((a: any, b: any) => b.weight - a.weight)
+      ? [...profile.interests].sort(
+          (
+            a: IUserProfile['interests'][number],
+            b: IUserProfile['interests'][number]
+          ) => b.weight - a.weight
+        )
       : []
 
     const interestTagIds = sortedInterests
       .slice(0, MAX_INTEREST_TAGS)
-      .map((item: any) => item.tagId)
+      .map((item: IUserProfile['interests'][number]) => item.tagId)
 
     // 无兴趣标签，直接进入兜底流
     if (!interestTagIds.length) {
@@ -396,12 +433,15 @@ class PostService {
     }
 
     // 构建查询
-    const query: any = {
+    const query: FilterQuery<RawPostDocument> = {
+      // 构造查询条件：笔记的 tags 字段必须包含用户的兴趣标签之一 ($in 查询)
       tags: { $in: interestTagIds },
     }
 
+    // 排除已展示的笔记 ID
     if (excludeIds && excludeIds.length > 0) {
-      query._id = { $nin: excludeIds.slice(0, MAX_EXCLUDE_IDS) }
+      const safeExcludeIds = excludeIds.slice(0, MAX_EXCLUDE_IDS)
+      query._id = { $nin: safeExcludeIds }
     }
 
     if (cursorCreatedAt && cursorId) {
@@ -411,83 +451,98 @@ class PostService {
       ]
     }
 
-    const posts = await Post.find(query)
-      .sort({ createdAt: -1, _id: -1 })
+    // 查询数据库
+    const rawProfilePosts = await Post.find(query)
+      .sort({ createdAt: -1, _id: -1 }) // 按发布时间倒序
       .limit(limit + 1)
       .populate('author', 'username avatar')
       .populate('topic', 'name')
       .populate('tags', 'name')
-      .lean()
+      .lean() // 转为普通 JS 对象，提高性能
 
-    const hasMoreProfile = posts.length > limit
+    // 是否还有下一页
+    const hasMoreProfile = rawProfilePosts.length > limit
     if (hasMoreProfile) {
-      posts.pop()
+      rawProfilePosts.pop()
     }
 
-    const formattedPosts = posts.map((post: any) =>
-      formatPostWithImages(post, IMAGE_QUALITY.THUMBNAIL, true)
+    // 数据清洗与格式化
+    const profilePosts = rawProfilePosts.map(
+      (post: any) =>
+        formatPostWithImages(post, IMAGE_QUALITY.THUMBNAIL, true) as IPost
     )
 
-    // profile 数据为空，直接进入 fallback
-    if (!formattedPosts.length) {
+    // 如果画像召回为空，直接进入兜底阶段
+    if (!profilePosts.length) {
       return this.buildFallbackFeedResult(limit, undefined, excludeIds)
     }
 
-    // profile 还有数据
+    // 画像阶段还有下一页，则本次只返回画像数据
     if (hasMoreProfile) {
-      const lastPost = formattedPosts[formattedPosts.length - 1]
-      const nextCursor = encodeCursor({
+      const lastPost = profilePosts[profilePosts.length - 1]
+      const payload: DecodedCursor = {
         phase: 'profile',
-        createdAt: lastPost.createdAt,
+        createdAt: new Date(lastPost.createdAt), // Convert string to Date
         _id: lastPost._id,
-      })
-      return this.buildPaginationResult(formattedPosts, {
+      }
+      const nextCursor = encodeCursor(payload)
+
+      return this.buildPaginationResult(profilePosts, {
         nextCursor,
         hasNextPage: true,
         limit,
       })
     }
 
-    // profile 数据不足，用 fallback 补充
-    const remainingNeeded = limit - formattedPosts.length
+    // 画像阶段最后一页：不足一整页，用兜底流补齐；
+    // 如果刚好一整页（fallbackNeeded = 0），则下一页直接切换到兜底阶段
+    const fallbackNeeded = Math.max(limit - profilePosts.length, 0)
 
-    if (remainingNeeded <= 0) {
-      const nextCursor = encodeCursor({ phase: 'fallback' })
-      return this.buildPaginationResult(formattedPosts, {
+    if (fallbackNeeded <= 0) {
+      const payload: DecodedCursor = {
+        phase: 'fallback', // 下一次请求直接从 fallback 开始
+      }
+      const nextCursor = encodeCursor(payload)
+
+      return this.buildPaginationResult(profilePosts, {
         nextCursor,
         hasNextPage: true,
         limit,
       })
     }
 
-    const existingIds = new Set(formattedPosts.map((p: any) => String(p._id)))
+    const existingIds = new Set(profilePosts.map((p: IPost) => String(p._id)))
     const fallbackExcludeIds = [
       ...(excludeIds || []),
       ...Array.from(existingIds),
     ]
 
     const fallbackResult = await this.buildFallbackFeedResult(
-      remainingNeeded,
+      fallbackNeeded,
       undefined,
       fallbackExcludeIds
     )
 
     const dedupFallbackPosts = fallbackResult.posts.filter(
-      (p: any) => !existingIds.has(String(p._id))
+      (p: IPost) => !existingIds.has(String(p._id))
     )
-    const combinedPosts = [...formattedPosts, ...dedupFallbackPosts]
+    const combinedPosts = [...profilePosts, ...dedupFallbackPosts]
 
-    let nextCursor: string | null = null
+    let combinedNextCursor: string | null = null
     if (
       fallbackResult.pagination?.hasNextPage &&
       fallbackResult.pagination?.nextCursor
     ) {
-      nextCursor = fallbackResult.pagination.nextCursor
+      const payload: DecodedCursor = {
+        phase: 'fallback',
+        innerCursor: fallbackResult.pagination.nextCursor,
+      }
+      combinedNextCursor = encodeCursor(payload)
     }
 
     return this.buildPaginationResult(combinedPosts, {
-      nextCursor,
-      hasNextPage: Boolean(nextCursor),
+      nextCursor: combinedNextCursor,
+      hasNextPage: Boolean(fallbackResult.pagination?.hasNextPage),
       limit,
     })
   }
@@ -495,7 +550,11 @@ class PostService {
   /**
    * 更新笔记
    */
-  async updatePost(id: string, userId: string, data: any) {
+  async updatePost(
+    id: string,
+    userId: string,
+    data: UpdatePostDto
+  ): Promise<IPost | null> {
     const found = await Post.findById(id)
     if (!found) return null
     if (found.author.toString() !== userId) {
@@ -503,7 +562,7 @@ class PostService {
     }
 
     const { body, bodyPreview, images, topic: userTopic } = data
-    const update: any = {}
+    const update: Partial<RawPostDocument> = {}
 
     if (typeof body === 'string') {
       const bodyStr = body.trim()
@@ -512,21 +571,23 @@ class PostService {
     }
 
     if (Array.isArray(images)) {
-      applyImagesToTarget(update, images, { resetWhenEmpty: true })
+      applyImagesToTarget(update as Partial<IPost>, images)
     }
 
     // 更新话题：如果用户提供了话题则更新
     if (typeof userTopic === 'string') {
       if (userTopic.trim()) {
         const topic = await topicService.getOrCreateTopic(userTopic.trim())
-        update.topic = topic._id
+        update.topic = topic._id as unknown as Types.ObjectId
       } else {
         // 用户清空了话题
-        update.topic = null
+        update.topic = undefined
       }
     }
 
-    return await Post.findByIdAndUpdate(id, update, { new: true })
+    const updated = await Post.findByIdAndUpdate(id, update, { new: true })
+    if (!updated) return null
+    return formatPostWithImages(updated, IMAGE_QUALITY.PREVIEW, true) as IPost
   }
 
   /**
@@ -574,7 +635,11 @@ class PostService {
    * 用于瀑布流首页获取笔记列表
    * @param excludeIds 排除的笔记 ID 列表，用于避免重复展示
    */
-  async getPosts(limit: number, cursor?: string, excludeIds?: string[]) {
+  async getPosts(
+    limit: number,
+    cursor?: string,
+    excludeIds?: string[]
+  ): Promise<PostsResponse> {
     // 首屏请求缓存优化：无 cursor 且无 excludeIds 时使用缓存
     const isFirstPage = !cursor && (!excludeIds || excludeIds.length === 0)
 
@@ -590,7 +655,7 @@ class PostService {
       }
     }
 
-    let query: any = {}
+    let query: FilterQuery<RawPostDocument> = {}
 
     // 排除已展示的笔记 ID
     if (excludeIds && excludeIds.length > 0) {
@@ -600,13 +665,13 @@ class PostService {
 
     if (cursor) {
       try {
-        const decoded = JSON.parse(
+        const decoded: DecodedCursor = JSON.parse(
           Buffer.from(cursor, 'base64').toString('utf-8')
         )
-        const cursorTime = new Date(decoded.createdAt)
+        const cursorTime = new Date(decoded.createdAt!)
         const cursorId = decoded._id
 
-        const cursorCondition = {
+        const cursorCondition: FilterQuery<RawPostDocument> = {
           $or: [
             { createdAt: { $lt: cursorTime } },
             { createdAt: cursorTime, _id: { $lt: cursorId } },
@@ -637,15 +702,16 @@ class PostService {
       posts.pop()
     }
 
-    const formattedPosts = posts.map((post: any) =>
-      formatPostWithImages(post, IMAGE_QUALITY.THUMBNAIL, true)
+    const formattedPosts = posts.map(
+      (post: any) =>
+        formatPostWithImages(post, IMAGE_QUALITY.THUMBNAIL, true) as IPost
     )
 
-    let nextCursor = null
+    let nextCursor: string | null = null
     if (hasNextPage && formattedPosts.length > 0) {
       const lastPost = formattedPosts[formattedPosts.length - 1]
-      const cursorPayload = {
-        createdAt: lastPost.createdAt,
+      const cursorPayload: DecodedCursor = {
+        createdAt: new Date(lastPost.createdAt), // Convert string to Date
         _id: lastPost._id,
       }
       nextCursor = encodeCursor(cursorPayload)
@@ -672,15 +738,19 @@ class PostService {
   /**
    * 获取用户自己的笔记列表
    */
-  async getUserPosts(userId: string, limit: number, cursor?: string) {
-    let query: any = { author: userId }
+  async getUserPosts(
+    userId: string,
+    limit: number,
+    cursor?: string
+  ): Promise<PostsResponse> {
+    let query: FilterQuery<RawPostDocument> = { author: userId }
 
     if (cursor) {
       try {
-        const decoded = JSON.parse(
+        const decoded: DecodedCursor = JSON.parse(
           Buffer.from(cursor, 'base64').toString('utf-8')
         )
-        const cursorTime = new Date(decoded.updatedAt)
+        const cursorTime = new Date(decoded.updatedAt!)
         const cursorId = decoded._id
 
         query = {
@@ -708,15 +778,16 @@ class PostService {
       posts.pop()
     }
 
-    const formattedPosts = posts.map((post: any) =>
-      formatPostWithImages(post, IMAGE_QUALITY.THUMBNAIL, true)
+    const formattedPosts = posts.map(
+      (post: any) =>
+        formatPostWithImages(post, IMAGE_QUALITY.THUMBNAIL, true) as IPost
     )
 
     let nextCursor: string | null = null
     if (hasNextPage && formattedPosts.length > 0) {
       const lastPost = formattedPosts[formattedPosts.length - 1]
-      const cursorPayload = {
-        updatedAt: lastPost.updatedAt,
+      const cursorPayload: DecodedCursor = {
+        updatedAt: new Date(lastPost.updatedAt), // Convert string to Date
         _id: lastPost._id,
       }
       nextCursor = encodeCursor(cursorPayload)
@@ -738,7 +809,7 @@ class PostService {
     limit: number,
     cursor?: string,
     excludeIds?: string[]
-  ) {
+  ): Promise<PostsResponse> {
     let phase: 'profile' | 'fallback' = 'profile'
     let profileCursorCreatedAt: Date | undefined // 用于在画像阶段进行数据库分页查询
     let profileCursorId: string | undefined
@@ -746,7 +817,7 @@ class PostService {
 
     // 如果存在 cursor，则说明不是第一页，需要解析 cursor 中的状态
     if (cursor) {
-      const decoded = decodeFeedCursor(cursor) // 解码 base64 字符串为 JSON 对象
+      const decoded: DecodedCursor | null = decodeFeedCursor(cursor) // 解码 base64 字符串为 JSON 对象
       if (
         decoded &&
         decoded.phase === 'profile' &&
@@ -784,13 +855,18 @@ class PostService {
 
     // 提取用户感兴趣的标签，并按权重降序排列
     const sortedInterests = Array.isArray(profile.interests)
-      ? [...profile.interests].sort((a: any, b: any) => b.weight - a.weight)
+      ? [...profile.interests].sort(
+          (
+            a: IUserProfile['interests'][number],
+            b: IUserProfile['interests'][number]
+          ) => b.weight - a.weight
+        )
       : []
 
     // 取出前 MAX_INTEREST_TAGS 个标签 ID，避免查询条件过长
     const interestTagIds = sortedInterests
       .slice(0, MAX_INTEREST_TAGS)
-      .map((item: any) => item.tagId)
+      .map((item: IUserProfile['interests'][number]) => item.tagId)
 
     // 无兴趣标签，直接退化到兜底流
     if (!interestTagIds.length) {
@@ -798,7 +874,7 @@ class PostService {
     }
 
     // 执行数据库查询
-    const query: any = {
+    const query: FilterQuery<RawPostDocument> = {
       // 构造查询条件：笔记的 tags 字段必须包含用户的兴趣标签之一 ($in 查询)
       tags: { $in: interestTagIds },
     }
@@ -832,8 +908,9 @@ class PostService {
     }
 
     // 数据清洗与格式化
-    const profilePosts = rawProfilePosts.map((post: any) =>
-      formatPostWithImages(post, IMAGE_QUALITY.THUMBNAIL, true)
+    const profilePosts = rawProfilePosts.map(
+      (post: any) =>
+        formatPostWithImages(post, IMAGE_QUALITY.THUMBNAIL, true) as IPost
     )
 
     // 如果画像召回为空，直接进入兜底阶段
@@ -844,9 +921,9 @@ class PostService {
     // 画像阶段还有下一页，则本次只返回画像数据
     if (hasMoreProfile) {
       const lastPost = profilePosts[profilePosts.length - 1]
-      const payload = {
+      const payload: DecodedCursor = {
         phase: 'profile',
-        createdAt: lastPost.createdAt,
+        createdAt: new Date(lastPost.createdAt), // Convert string to Date
         _id: lastPost._id,
       }
       const nextCursor = encodeCursor(payload)
@@ -863,7 +940,7 @@ class PostService {
     const fallbackNeeded = Math.max(limit - profilePosts.length, 0)
 
     if (fallbackNeeded <= 0) {
-      const payload = {
+      const payload: DecodedCursor = {
         phase: 'fallback', // 下一次请求直接从 fallback 开始
       }
       const nextCursor = encodeCursor(payload)
@@ -875,38 +952,38 @@ class PostService {
       })
     }
 
-    const fallbackResult = await this.getPosts(
+    const existingIds = new Set(profilePosts.map((p: IPost) => String(p._id)))
+    const fallbackExcludeIds = [
+      ...(excludeIds || []),
+      ...Array.from(existingIds),
+    ]
+
+    const fallbackResult = await this.buildFallbackFeedResult(
       fallbackNeeded,
       undefined,
-      excludeIds
+      fallbackExcludeIds
     )
-    const fallbackPagination = fallbackResult.pagination ?? {
-      nextCursor: null,
-      hasNextPage: false,
-      limit: fallbackNeeded,
-    }
 
-    // 去重逻辑：防止兜底流里出现了画像流里刚展示过的笔记
-    const existingIds = new Set(
-      profilePosts.map((post: any) => String(post._id))
-    )
     const dedupFallbackPosts = fallbackResult.posts.filter(
-      (post: any) => !existingIds.has(String(post._id))
+      (p: IPost) => !existingIds.has(String(p._id))
     )
     const combinedPosts = [...profilePosts, ...dedupFallbackPosts]
 
     let combinedNextCursor: string | null = null
-    if (fallbackPagination.hasNextPage && fallbackPagination.nextCursor) {
-      const payload = {
+    if (
+      fallbackResult.pagination?.hasNextPage &&
+      fallbackResult.pagination?.nextCursor
+    ) {
+      const payload: DecodedCursor = {
         phase: 'fallback',
-        innerCursor: fallbackPagination.nextCursor,
+        innerCursor: fallbackResult.pagination.nextCursor,
       }
       combinedNextCursor = encodeCursor(payload)
     }
 
     return this.buildPaginationResult(combinedPosts, {
       nextCursor: combinedNextCursor,
-      hasNextPage: Boolean(fallbackPagination.hasNextPage),
+      hasNextPage: Boolean(fallbackResult.pagination?.hasNextPage),
       limit,
     })
   }

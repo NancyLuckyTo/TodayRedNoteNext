@@ -13,7 +13,7 @@ export interface IPost {
   author: IAuthor
   body: string
   bodyPreview?: string
-  images: string[]
+  images: Array<{ url: string; width: number; height: number }>
   tags?: Array<{
     _id: string
     name: string
