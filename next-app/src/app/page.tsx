@@ -1,4 +1,4 @@
-import HomePageClient from '@/components/HomePageClient'
+import HomePageClient from '@/components/features/home/HomePageClient'
 import connectDB from '@/lib/db'
 import Post from '@/models/postModel'
 import '@/models/userModel'

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Card } from './ui/card'
+import { Card } from '@/components/ui/card'
 import { Heart, ImageOff } from 'lucide-react'
 import { IMAGE_RATIO } from '@today-red-note/types'
 import type { IPost } from '@today-red-note/types'

@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { normalizePost } from '@/lib/postUtils'
 import type { IPost } from '@today-red-note/types'
 import type { PostsResponse } from '@/types/posts'
-import { PostDetailItem } from '@/components/PostDetailItem'
+import { PostDetailItem } from '@/components/features/post/components/PostDetailItem'
 
 const ROOT_MARGIN_VALUE = '1200px'
 

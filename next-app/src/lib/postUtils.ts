@@ -62,10 +62,19 @@ export const normalizePost = (post: IPost): IPost => ({
   ...post,
   images:
     post.images
-      ?.map((img: string | { url?: string }) =>
-        typeof img === 'string' ? img : img?.url
-      )
-      .filter((url): url is string => Boolean(url)) || [],
+      ?.map((img: any) => {
+        if (typeof img === 'string') {
+          return { url: img, width: 0, height: 0 }
+        }
+        return {
+          url: img.url || '',
+          width: img.width || 0,
+          height: img.height || 0,
+        }
+      })
+      .filter((img): img is { url: string; width: number; height: number } =>
+        Boolean(img.url)
+      ) || [],
   coverRatio: post.coverRatio ?? IMAGE_RATIO.PORTRAIT,
 })
 

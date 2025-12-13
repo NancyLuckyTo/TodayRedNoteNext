@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { getDefaultAvatar } from '@/lib/avatarUtils'
 import type { IPost } from '@today-red-note/types'
-import { RichTextEditor } from '@/components/editPost/RichTextEditor'
+import { RichTextEditor } from '@/components/features/post/edit/RichTextEditor'
 import { useAuthStore } from '@/stores/auth'
 import { useDeletePost } from '@/hooks/useDeletePost'
 import { usePostComments } from '@/hooks/usePostComments'
