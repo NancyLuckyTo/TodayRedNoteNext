@@ -1,5 +1,6 @@
 import './globals.css'
 import { Providers } from '@/components/providers/Providers'
+import BottomNav from '@/components/layout/BottomNav'
 
 export const metadata = {
   title: 'Today Red Note',
@@ -20,6 +21,7 @@ export default function RootLayout({
               {children}
             </div>
           </div>
+          <BottomNav />
         </Providers>
       </body>
     </html>
