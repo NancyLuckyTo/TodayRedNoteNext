@@ -1,18 +1,11 @@
 import { NextResponse } from 'next/server'
-import connectDB from '@/server/db'
-import User from '@/server/models/userModel'
-import jwt from 'jsonwebtoken'
+import { authService } from '@/server/services/auth'
+import type { AuthBody } from '../types'
 
 // 注册请求体：只包含用户名和密码
-interface AuthBody {
-  username?: string
-  password?: string
-}
 
 // 创建新用户并直接登录（写入 JWT Cookie）
 export async function POST(request: Request) {
-  await connectDB()
-
   let body: AuthBody | null = null
   try {
     body = await request.json()
@@ -21,77 +14,32 @@ export async function POST(request: Request) {
   }
 
   const { username, password } = body ?? {}
-  if (!username || !password) {
+
+  const result = await authService.register(username, password)
+
+  if (!result.success || !result.token) {
     return NextResponse.json(
-      { message: 'username and password are required' },
-      { status: 400 } // Bad Request
+      { message: result.error || 'Registration failed' },
+      { status: result.status || 500 }
     )
   }
 
-  try {
-    const existed = await User.exists({ username }) // 检查用户名是否已存在
-    if (existed) {
-      return NextResponse.json(
-        { message: 'username already exists' },
-        { status: 409 } // Conflict
-      )
-    }
+  const response = NextResponse.json(
+    {
+      success: true,
+      token: result.token,
+      user: result.user,
+    },
+    { status: 201 } // Created 资源创建成功
+  )
 
-    const user = new User({ username, password })
-    await user.save() // 密码进行加盐哈希存储
+  response.cookies.set('token', result.token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 60 * 60 * 24 * 7, // 7 天
+    path: '/',
+  })
 
-    const secret = process.env.JWT_SECRET
-    if (!secret) {
-      return NextResponse.json(
-        { message: 'Server misconfigured' },
-        { status: 500 } // Internal Server Error
-      )
-    }
-
-    // 签发 token，注册成功自动登录
-    const token = jwt.sign(
-      { userId: user.id, username: user.username },
-      secret,
-      { expiresIn: '7d' }
-    )
-
-    const response = NextResponse.json(
-      {
-        success: true,
-        token,
-        user: {
-          id: user.id,
-          username: user.username,
-          createdAt: user.createdAt,
-        },
-      },
-      { status: 201 } // Created 资源创建成功
-    )
-
-    response.cookies.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 7, // 7 天
-      path: '/',
-    })
-
-    return response
-  } catch (err: unknown) {
-    if (
-      typeof err === 'object' &&
-      err !== null &&
-      'code' in err &&
-      (err as { code?: number | string }).code === 11000
-    ) {
-      return NextResponse.json(
-        { message: 'username already exists' },
-        { status: 409 }
-      )
-    }
-    return NextResponse.json(
-      { message: 'Internal Server Error' },
-      { status: 500 }
-    )
-  }
+  return response
 }
