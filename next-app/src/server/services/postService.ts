@@ -676,18 +676,21 @@ class PostService {
         const cursorTime = new Date(decoded.createdAt!)
         const cursorId = decoded._id
 
-        const cursorCondition: FilterQuery<RawPostDocument> = {
-          $or: [
-            { createdAt: { $lt: cursorTime } },
-            { createdAt: cursorTime, _id: { $lt: cursorId } },
-          ],
-        }
+        // 检验数据的有效性
+        if (!isNaN(cursorTime.getTime())) {
+          const cursorCondition: FilterQuery<RawPostDocument> = {
+            $or: [
+              { createdAt: { $lt: cursorTime } },
+              { createdAt: cursorTime, _id: { $lt: cursorId } },
+            ],
+          }
 
-        // 合并 cursor 条件和 excludeIds 条件
-        if (query._id) {
-          query = { $and: [{ _id: query._id }, cursorCondition] }
-        } else {
-          query = cursorCondition
+          // 合并 cursor 条件和 excludeIds 条件
+          if (query._id) {
+            query = { $and: [{ _id: query._id }, cursorCondition] }
+          } else {
+            query = cursorCondition
+          }
         }
       } catch (err) {
         // cursor 解析失败，保持现有 query（可能包含 excludeIds）
@@ -758,12 +761,14 @@ class PostService {
         const cursorTime = new Date(decoded.updatedAt!)
         const cursorId = decoded._id
 
-        query = {
-          author: userId,
-          $or: [
-            { updatedAt: { $lt: cursorTime } },
-            { updatedAt: cursorTime, _id: { $lt: cursorId } },
-          ],
+        if (!isNaN(cursorTime.getTime())) {
+          query = {
+            author: userId,
+            $or: [
+              { updatedAt: { $lt: cursorTime } },
+              { updatedAt: cursorTime, _id: { $lt: cursorId } },
+            ],
+          }
         }
       } catch (error) {
         console.log('Error in getUserPosts: ', error)
@@ -986,11 +991,16 @@ class PostService {
       fallbackResult.pagination?.hasNextPage &&
       fallbackResult.pagination?.nextCursor
     ) {
-      const payload: DecodedCursor = {
-        phase: 'fallback',
-        innerCursor: fallbackResult.pagination.nextCursor,
-      }
-      combinedNextCursor = encodeCursor(payload)
+      // Fix: Do not double wrap the cursor.
+      // fallbackResult.pagination.nextCursor is already a base64 encoded string from buildFallbackFeedResult
+      // which calls getPosts -> encodeCursor.
+      // We just need to pass it through as the next cursor for the client to send back.
+      // However, since we are in "getPersonalizedFeed", the client expects the cursor to potentially contain phase info.
+      // But wait, buildFallbackFeedResult wraps it in "fallback" phase:
+      // const payload: DecodedCursor = { phase: 'fallback', innerCursor: basePagination.nextCursor }
+      // wrappedNextCursor = encodeCursor(payload)
+      // So fallbackResult.pagination.nextCursor IS ALREADY the correct cursor for the next request.
+      combinedNextCursor = fallbackResult.pagination.nextCursor
     }
 
     return this.buildPaginationResult(combinedPosts, {
