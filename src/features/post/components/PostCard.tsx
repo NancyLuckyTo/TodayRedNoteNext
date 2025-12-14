@@ -9,12 +9,15 @@ import { getDefaultAvatar } from '@/lib/avatarUtils'
 import { getAspectRatio, htmlToText } from '@/lib/postUtils'
 import Image from 'next/image'
 
+type ImageFetchPriority = 'auto' | 'high' | 'low'
+
 interface PostCardProps {
   post: IPost
   onClick?: () => void
   'data-waterfall-height'?: number
   priority?: boolean
   loading?: 'lazy' | 'eager'
+  fetchPriority?: ImageFetchPriority
 }
 
 export function PostCard({
@@ -22,6 +25,7 @@ export function PostCard({
   onClick,
   priority = false,
   loading,
+  fetchPriority,
 }: PostCardProps) {
   const { author, body, bodyPreview, images, likesCount = 0 } = post
   const [imageError, setImageError] = useState(false)
@@ -55,6 +59,7 @@ export function PostCard({
               sizes="(max-width: 768px) 50vw, 25vw"
               priority={priority}
               loading={loadingStrategy}
+              fetchPriority={fetchPriority}
               unoptimized={firstImage.url.includes('x-oss-process')} // OSS 图片已优化，跳过 Next.js 优化
               onError={() => setImageError(true)}
             />

@@ -15,6 +15,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
+      <head>
+        <link
+          rel="preconnect"
+          href="https://img.todayrednote.top"
+          crossOrigin=""
+        />
+        <link
+          rel="preconnect"
+          href="https://today-red-note.oss-cn-hongkong.aliyuncs.com"
+          crossOrigin=""
+        />
+      </head>
       <body>
         <Providers>
           <DynamicGlobalPublisher />

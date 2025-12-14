@@ -307,7 +307,7 @@ const HomePageContent = ({
           post={post}
           onClick={() => handlePostClick(post._id)}
           priority={index < PRIORITY_LIMIT}
-          loading="eager"
+          fetchPriority={index === 0 ? 'high' : undefined}
         />
       )
     },
