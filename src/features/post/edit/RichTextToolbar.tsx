@@ -52,7 +52,7 @@ export const RichTextToolbar = ({
   return (
     <div
       className={cn(
-        'flex items-center gap-1 p-2 bg-white border-t border-gray-100 overflow-x-auto',
+        'flex items-center gap-1 p-2 bg-white border-t border-gray-100 overflow-x-auto text-black w-full max-w-md mx-auto',
         'scrollbar-hide',
         className
       )}

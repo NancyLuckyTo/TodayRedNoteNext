@@ -7,7 +7,7 @@ export const buttonVariants = cva(
       variant: {
         default: 'bg-primary text-primary-foreground ',
         redButton: 'bg-red-500 text-white',
-        outline: 'border bg-background shadow-xs',
+        outline: 'border bg-white shadow-xs',
         secondary: 'bg-secondary text-secondary-foreground',
         link: 'text-primary underline-offset-4',
         ghost: '',

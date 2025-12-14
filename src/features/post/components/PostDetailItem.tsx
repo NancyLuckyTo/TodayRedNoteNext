@@ -98,7 +98,7 @@ export function PostDetailItem({
   }
 
   return (
-    <div className="flex flex-col bg-background pb-2 mb-1 last:mb-0">
+    <div className="flex flex-col bg-white pb-2 mb-1 last:mb-0">
       {/* 作者信息 */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
@@ -108,7 +108,9 @@ export function PostDetailItem({
             className="h-10 w-10 rounded-full object-cover border border-border"
           />
           <div className="flex flex-col">
-            <span className="text-sm font-medium">{author.username}</span>
+            <span className="text-sm font-medium text-black">
+              {author.username}
+            </span>
             {/* 发布时间 */}
             <span className="text-xs text-muted-foreground">
               {new Intl.DateTimeFormat('zh-CN', {
@@ -188,7 +190,7 @@ export function PostDetailItem({
           content={body}
           onChange={() => {}}
           disabled={true}
-          className="min-h-0 text-lg"
+          className="min-h-0 text-lg text-black"
         />
       </div>
 

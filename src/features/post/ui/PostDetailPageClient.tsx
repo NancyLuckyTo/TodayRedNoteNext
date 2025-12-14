@@ -168,7 +168,7 @@ export default function PostDetailClient({
         <Button
           variant="ghost"
           size="icon"
-          className="-ml-2"
+          className="-ml-2 text-gray-500"
           onClick={() => router.back()}
         >
           <ChevronLeft className="h-6 w-6" />
@@ -186,7 +186,7 @@ export default function PostDetailClient({
 
         {/* 右侧菜单按钮 */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="-mr-2">
+          <Button variant="ghost" size="icon" className="-mr-2 text-gray-500">
             <MoreHorizontal className="h-6 w-6" />
           </Button>
         </div>

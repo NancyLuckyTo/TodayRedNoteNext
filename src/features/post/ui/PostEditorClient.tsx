@@ -316,6 +316,7 @@ export default function PostEditorClient({
         <Button
           type="button"
           variant="ghost"
+          className="text-gray-500"
           onClick={handleCancel}
           disabled={isPending}
         >
@@ -374,7 +375,7 @@ export default function PostEditorClient({
                         }}
                         placeholder="分享你的想法"
                         disabled={isPending}
-                        className="min-h-[120px]"
+                        className="min-h-[120px] text-black"
                       />
                     </div>
                   </FormControl>

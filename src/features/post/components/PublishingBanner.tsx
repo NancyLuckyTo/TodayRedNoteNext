@@ -59,7 +59,7 @@ export const PublishingBanner = () => {
 
   return (
     <div
-      className="fixed left-0 right-0 top-12 z-50 mx-2 rounded-xl bg-white overflow-hidden shadow-lg"
+      className="fixed left-0 right-0 top-12 z-50 px-2 rounded-xl bg-white overflow-hidden shadow-lg max-w-md mx-auto"
       onClick={isClickable ? handleClick : undefined}
     >
       <div className="flex items-center p-2 gap-3">

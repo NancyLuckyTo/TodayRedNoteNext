@@ -210,7 +210,7 @@ const ProfilePage = () => {
   )
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gray-50">
       {/* 头部容器 */}
       <div className="bg-linear-to-b from-gray-600 to-gray-500 px-6 pt-8 pb-6">
         {/* 头像、昵称、简介 */}
@@ -284,7 +284,7 @@ const ProfilePage = () => {
       {/* 笔记卡片容器 */}
       <div className="bg-gray-100 rounded-t-3xl min-h-[70vh]">
         {/* 吸顶导航栏 */}
-        <div className="sticky top-0 bg-white z-10 border-b border-gray-100">
+        <div className="sticky top-0 bg-white z-10 border-b border-gray-50">
           <div className="flex items-center px-6 pt-3 pb-3">
             {/* 标签页按钮组 */}
             <div className="flex-1 flex gap-10">
@@ -330,7 +330,7 @@ const ProfilePage = () => {
           </div>
         </div>
 
-        <div className="pb-20">
+        <div className="pb-20 min-h-[70vh] bg-gray-50">
           {activeTab === 'notes' && (
             <>
               {isInitialLoading && !posts.length ? (
@@ -351,10 +351,12 @@ const ProfilePage = () => {
               )}
 
               {isEmpty && !error && (
-                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <div className="flex flex-col space-y-2 items-center justify-center py-16 text-muted-foreground">
                   <p className="text-sm">你还没有发布任何笔记</p>
                   <Button
-                    className="border bg-background text-black px-3 py-4 mt-4 rounded-full"
+                    variant="outline"
+                    size="sm"
+                    className=""
                     onClick={() => router.push('/createPost')}
                   >
                     去发布
@@ -370,10 +372,10 @@ const ProfilePage = () => {
                 </div>
               ) : null}
 
-              <div className="flex w-full justify-center px-4 py-6">
+              <div className="flex w-full justify-center px-4 py-6 bg-gray-50">
                 <div
                   ref={observerTarget}
-                  className="flex items-center gap-2 text-sm text-muted-foreground"
+                  className="flex items-center gap-2 text-sm"
                 >
                   {isLoadingMore ? <Spinner /> : null}
                 </div>

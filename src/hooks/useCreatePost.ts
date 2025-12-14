@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { toast } from '@/components/ui/toast'
 import api from '@/lib/api'
 import type { IPost } from '@today-red-note/types'
 import { uploadImages } from '@/lib/postUtils'
@@ -50,7 +49,6 @@ export const useCreatePost = (options: UseCreatePostOptions = {}) => {
       return res.data.post
     },
     onSuccess: post => {
-      toast.success('发布成功')
       queryClient.invalidateQueries({ queryKey: ['posts'] })
       if (options.onSuccess) {
         options.onSuccess(post)
@@ -60,7 +58,7 @@ export const useCreatePost = (options: UseCreatePostOptions = {}) => {
     },
     onError: (error: Error) => {
       console.error(error)
-      // toast.error(error.message || '发布失败') 
+      // toast.error(error.message || '发布失败')
       // Let the caller handle UI feedback (e.g. Banner) to avoid double notifications
     },
   })

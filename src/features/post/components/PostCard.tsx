@@ -74,7 +74,7 @@ export function PostCard({
       {/* 正文预览 */}
       {hasBody && (
         <div className="px-3 py-2">
-          <p className="text-foreground line-clamp-2 text-sm overflow-hidden wrap-break-word">
+          <p className="text-black line-clamp-2 text-sm overflow-hidden wrap-break-word">
             {preview}
           </p>
         </div>

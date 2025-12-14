@@ -15,6 +15,7 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh'
 import { PublishingBanner } from '@/features/post/components/PublishingBanner'
 import { useDebugRootMargin } from '@/hooks/useDebugRootMargin'
 import { FETCH_LIMIT, PRIORITY_LIMIT, type IPost } from '@today-red-note/types'
+import { toast } from '@/components/ui/toast'
 
 interface HomePageClientProps {
   initialPosts: IPost[]
@@ -89,6 +90,17 @@ const HomePageContent = ({
 
   // 跟踪是否已经用 SSR 数据初始化过
   const hasHydratedRef = useRef(false)
+
+  const handleTopNavClick = useCallback((tab: 'follow' | 'city') => {
+    if (tab === 'follow') {
+      toast.info('点击了关注')
+      return
+    }
+
+    if (tab === 'city') {
+      toast.info('点击了北京')
+    }
+  }, [])
 
   // 响应式宽度调整
   useEffect(() => {
@@ -323,9 +335,29 @@ const HomePageContent = ({
   return (
     <div className="flex flex-col h-dvh overflow-hidden">
       {/* 顶部导航栏 */}
-      <div className="flex-none z-10 bg-background border-b border-gray-100 px-4 py-2">
-        <div className="flex items-center justify-center">
-          <h1 className="text-base font-normal">发现</h1>
+      <div className="flex-none z-10 border-b border-gray-100 bg-white px-4 py-2">
+        <div className="flex items-center justify-center space-x-4 text-sm">
+          <button
+            type="button"
+            className="px-2 text-gray-500"
+            onClick={() => handleTopNavClick('follow')}
+          >
+            关注
+          </button>
+          <button
+            type="button"
+            className="px-2 text-lg text-black"
+            onClick={() => handleTopNavClick('follow')}
+          >
+            发现
+          </button>
+          <button
+            type="button"
+            className="px-2 text-gray-500"
+            onClick={() => handleTopNavClick('city')}
+          >
+            北京
+          </button>
         </div>
       </div>
 
