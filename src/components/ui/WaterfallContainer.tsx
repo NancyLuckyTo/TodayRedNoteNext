@@ -4,7 +4,7 @@ import { useMemo, useState, useRef, useLayoutEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
 
 const CONTAINER_HEIGHT = 800 // 默认可视容器高度
-const OVERSCAN_HEIGHT = 1400 // 上下各预渲染的缓冲区高度
+const OVERSCAN_HEIGHT = 2000 // 上下各预渲染的缓冲区高度
 const GAP = 4 // 卡片间距
 
 interface WaterfallContainerProps<T> {

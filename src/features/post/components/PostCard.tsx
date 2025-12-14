@@ -77,7 +77,7 @@ export function PostCard({
 
       {/* 作者信息栏 */}
       <div className="flex items-center gap-1 px-3 pb-2">
-        <div className="relative w-4 h-4 rounded-full overflow-hidden flex-shrink-0">
+        <div className="relative w-4 h-4 rounded-full overflow-hidden shrink-0">
           <Image
             src={author.avatar || getDefaultAvatar(author.username)}
             alt={author.username}

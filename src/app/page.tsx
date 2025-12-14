@@ -18,5 +18,10 @@ export default async function Page() {
   // 未登录用户使用公共信息流
   const result = await postService.getPosts(FETCH_LIMIT)
 
-  return <HomePageClient initialPosts={result.posts} />
+  return (
+    <HomePageClient
+      initialPosts={result.posts}
+      initialPagination={result.pagination}
+    />
+  )
 }

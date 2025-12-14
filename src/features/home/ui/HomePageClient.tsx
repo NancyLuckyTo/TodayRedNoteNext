@@ -18,6 +18,7 @@ import { FETCH_LIMIT, PRIORITY_LIMIT, type IPost } from '@today-red-note/types'
 
 interface HomePageClientProps {
   initialPosts: IPost[]
+  initialPagination?: PostsResponse['pagination']
 }
 
 // 移动端默认宽度假设（用于 SSR）
@@ -58,7 +59,10 @@ const useHomeStoreSelectors = () => {
   }
 }
 
-const HomePageContent = ({ initialPosts }: HomePageClientProps) => {
+const HomePageContent = ({
+  initialPosts,
+  initialPagination,
+}: HomePageClientProps) => {
   const rootMargin = useDebugRootMargin()
   const router = useRouter()
 
@@ -102,14 +106,28 @@ const HomePageContent = ({ initialPosts }: HomePageClientProps) => {
       setPosts(initialPosts)
       const postIds = initialPosts.map(p => p._id)
       addViewedPostIds(postIds)
-      setPagination(null, true)
+
+      const nextCursor = initialPagination?.nextCursor ?? null
+      const hasNextPage =
+        typeof initialPagination?.hasNextPage === 'boolean'
+          ? initialPagination.hasNextPage
+          : initialPosts.length >= FETCH_LIMIT
+
+      setPagination(nextCursor, hasNextPage)
       hasHydratedRef.current = true
     }
-  }, [initialPosts, posts.length, setPosts, addViewedPostIds, setPagination])
+  }, [
+    initialPosts,
+    initialPagination,
+    posts.length,
+    setPosts,
+    addViewedPostIds,
+    setPagination,
+  ])
 
   // 使用 store 中的 posts，不再回退到 initialPosts
   // 这样确保从其他页面返回时，数据和布局保持一致
-  const renderPosts = posts
+  const renderPosts = posts.length > 0 ? posts : initialPosts
 
   const isEmpty = useMemo(
     () => !renderPosts.length && !isInitialLoading,
@@ -373,8 +391,16 @@ const HomePageContent = ({ initialPosts }: HomePageClientProps) => {
   )
 }
 
-const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
-  return <HomePageContent initialPosts={initialPosts} />
+const HomePageClient = ({
+  initialPosts,
+  initialPagination,
+}: HomePageClientProps) => {
+  return (
+    <HomePageContent
+      initialPosts={initialPosts}
+      initialPagination={initialPagination}
+    />
+  )
 }
 
 export default HomePageClient
