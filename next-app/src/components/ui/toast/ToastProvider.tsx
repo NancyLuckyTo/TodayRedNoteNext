@@ -18,9 +18,9 @@ export function ToastProvider({ position = 'top-center' }: ToastProviderProps) {
   const toasts = useToastStore(state => state.toasts)
 
   const positionClasses = {
-    'top-left': 'top-4 left-4 items-start',
-    'top-right': 'top-4 right-4 items-end',
-    'top-center': 'top-4 left-1/2 -translate-x-1/2 items-center',
+    'top-left': 'top-12 left-4 items-start',
+    'top-right': 'top-12 right-4 items-end',
+    'top-center': 'top-12 left-1/2 -translate-x-1/2 items-center',
     'bottom-left': 'bottom-4 left-4 items-start',
     'bottom-right': 'bottom-4 right-4 items-end',
     'bottom-center': 'bottom-4 left-1/2 -translate-x-1/2 items-center',

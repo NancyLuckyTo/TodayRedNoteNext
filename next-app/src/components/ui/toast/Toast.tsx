@@ -49,7 +49,7 @@ export const Toast = ({ toast }: ToastProps) => {
     <div
       className={cn(
         // 基础样式
-        'flex items-start gap-3 w-full max-w-sm py-1 px-3 rounded-full',
+        'flex items-start gap-3 max-w-sm py-1 px-3.5 rounded-full',
         // 类型样式
         styleMap[toast.type],
         // 动画样式
