@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
+import { getErrorMessage } from '@/lib/utils'
 
 const LoginPage = () => {
   const router = useRouter()
@@ -41,18 +42,29 @@ const LoginPage = () => {
     e.preventDefault()
     setLoading(true)
     try {
-      const { data } = await api.post('/auth/login', {
-        username: loginAccount,
-        password: loginPassword,
-      })
-      // Token is now set in cookie by the server
+      const res = await api.post(
+        '/auth/login',
+        {
+          username: loginAccount,
+          password: loginPassword,
+        },
+        {
+          validateStatus: status => (status ?? 0) < 500,
+        }
+      )
+
+      if (res.status === 401) {
+        toast.error('登录失败，请检查账号密码')
+        return
+      }
+
+      const data = res.data
+      // token 由服务端设置
       const token = data?.token as string
       if (token) {
-        // We still set it in store for client-side usage if needed,
-        // but primary source is cookie.
         setToken(token)
 
-        // Fetch profile to get user details
+        // 获取用户信息
         await api
           .get('/auth/me')
           .then(res => {
@@ -63,11 +75,13 @@ const LoginPage = () => {
         resetHome()
         toast.success('登录成功')
         router.push(from || '/profile')
-        router.refresh() // Refresh to update server components
+        router.refresh() // 更新服务端组件
+      } else {
+        toast.error('登录失败，请稍后再试')
       }
-    } catch (err: any) {
-      console.error(err)
-      toast.error(err.response?.data?.message || '登录失败，请检查账号密码')
+    } catch (error: unknown) {
+      console.error('登录请求异常:', error)
+      toast.error('登录失败，请稍后再试')
     } finally {
       setLoading(false)
     }
@@ -104,9 +118,9 @@ const LoginPage = () => {
         router.push('/profile')
         router.refresh()
       }
-    } catch (err: any) {
-      console.error(err)
-      toast.error(err.response?.data?.message || '注册失败，请稍后再试')
+    } catch (error: unknown) {
+      console.log(getErrorMessage(error))
+      toast.error('注册失败，请稍后再试')
     } finally {
       setLoading(false)
     }
@@ -161,7 +175,7 @@ const LoginPage = () => {
                   <Input
                     id="reg-account"
                     type="text"
-                    placeholder="10086"
+                    placeholder="NancyLucky"
                     required
                     value={regAccount}
                     onChange={e => setRegAccount(e.target.value)}

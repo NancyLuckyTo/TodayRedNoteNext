@@ -5,15 +5,11 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        redButton: 'bg-red-500 hover:bg-red-600 text-white',
-        outline:
-          'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50',
-        secondary:
-          'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        ghost:
-          'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
-        link: 'text-primary underline-offset-4 hover:underline',
+        default: 'bg-primary text-primary-foreground ',
+        redButton: 'bg-red-500  text-white',
+        outline: 'border bg-background shadow-xs',
+        secondary: 'bg-secondary text-secondary-foreground',
+        link: 'text-primary underline-offset-4',
       },
       size: {
         default: 'h-7 px-4 py-4 has-[>svg]:px-3 rounded-full',
