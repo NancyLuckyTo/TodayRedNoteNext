@@ -31,3 +31,9 @@ dist-ssr
 /server/src/data
 /server/src/scripts
 
+# Next.js
+/.next
+/out
+/.vercel
+*.tsbuildinfo
+next-env.d.ts
