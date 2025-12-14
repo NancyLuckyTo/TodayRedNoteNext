@@ -7,6 +7,7 @@ import { IMAGE_RATIO } from '@today-red-note/types'
 import type { IPost } from '@today-red-note/types'
 import { getDefaultAvatar } from '@/lib/avatarUtils'
 import { getAspectRatio, htmlToText } from '@/lib/postUtils'
+import Image from 'next/image'
 
 interface PostCardProps {
   post: IPost
@@ -34,15 +35,11 @@ export function PostCard({
     ? getAspectRatio(post.coverRatio || IMAGE_RATIO.PORTRAIT)
     : '0'
 
-  // 正文预览，使用 bodyPreview 字段，如果不存在则从 HTML 中提取
+  // 正文预览，优先使用 bodyPreview 字段
   const preview = hasBody ? bodyPreview || htmlToText(body) : ''
 
-  // 确定加载策略：
-  // 1. 如果显式传入 loading，则使用传入值
-  // 2. 否则如果 priority 为 true，则使用 eager
-  // 3. 否则使用 lazy
+  // 确定加载策略
   const loadingStrategy = loading || (priority ? 'eager' : 'lazy')
-  const fetchPriority = priority ? 'high' : 'auto'
 
   return (
     <Card className="overflow-hidden bg-white" onClick={onClick}>
@@ -50,12 +47,15 @@ export function PostCard({
       {hasImages && firstImage && (
         <div className="relative w-full bg-muted" style={{ aspectRatio }}>
           {!imageError ? (
-            <img
+            <Image
               src={firstImage.url}
               alt="Post cover"
-              className="h-full w-full object-cover"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 50vw, 25vw"
+              priority={priority}
               loading={loadingStrategy}
-              fetchPriority={fetchPriority}
+              unoptimized={firstImage.url.includes('x-oss-process')} // OSS 图片已优化，跳过 Next.js 优化
               onError={() => setImageError(true)}
             />
           ) : (
@@ -75,13 +75,18 @@ export function PostCard({
         </div>
       )}
 
-      {/* 作者头像、名字、点赞数 */}
+      {/* 作者信息栏 */}
       <div className="flex items-center gap-1 px-3 pb-2">
-        <img
-          src={author.avatar || getDefaultAvatar(author.username)}
-          alt={author.username}
-          className="w-4 h-4 rounded-full object-cover"
-        />
+        <div className="relative w-4 h-4 rounded-full overflow-hidden flex-shrink-0">
+          <Image
+            src={author.avatar || getDefaultAvatar(author.username)}
+            alt={author.username}
+            fill
+            className="object-cover"
+            sizes="16px"
+            unoptimized // UI Avatar 已经是小图，不需要优化
+          />
+        </div>
         <span className="text-xs text-muted-foreground flex-1 truncate">
           {author.username}
         </span>

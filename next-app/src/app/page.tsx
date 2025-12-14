@@ -1,29 +1,22 @@
 import HomePageClient from '@/features/home/ui/HomePageClient'
 import connectDB from '@/server/db'
-import Post from '@/server/models/postModel'
+import postService from '@/server/services/postService'
+import { FETCH_LIMIT } from '@today-red-note/types'
+// 确保相关模型已注册，因为 postService 会使用 populate
 import '@/server/models/userModel'
-import { formatPostWithImages } from '@/server/utils/postUtils'
-import { IMAGE_QUALITY, FETCH_LIMIT, type IPost } from '@today-red-note/types'
+import '@/server/models/tagModel'
+import '@/server/models/topicModel'
 
-export const revalidate = 60 // 单位：秒
+// 首屏缓存策略：ISR 60秒重新验证
+export const revalidate = 60
 
 export default async function Page() {
   await connectDB()
 
   // SSR 获取首屏数据
-  // 注意：这里直接查库，不走 API Route，效率更高
-  const initialPosts = await Post.find()
-    .sort({ createdAt: -1 })
-    .limit(FETCH_LIMIT)
-    .populate('author', 'username avatar') // 填充作者信息
-    .lean()
+  // 复用 postService.getPosts，与客户端 API 保持一致
+  // 未登录用户使用公共信息流
+  const result = await postService.getPosts(FETCH_LIMIT)
 
-  // 序列化 MongoDB 对象 (转 String ID)
-  // 并统一进行图片 URL 处理 (OSS 鉴权/压缩/WebP格式化)
-  const posts: IPost[] = JSON.parse(JSON.stringify(initialPosts)).map(
-    (post: IPost) =>
-      formatPostWithImages(post, IMAGE_QUALITY.THUMBNAIL, true) as IPost
-  )
-
-  return <HomePageClient initialPosts={posts} />
+  return <HomePageClient initialPosts={result.posts} />
 }

@@ -10,7 +10,7 @@ import type { PostsResponse } from '@/types/posts'
 import { calculatePostHeight } from '@/lib/postUtils'
 import { Spinner } from '@/components/ui/spinner'
 import { HomePageSkeleton } from '@/features/post/components/PostCardSkeleton'
-import { useHomeStore } from '@/stores/homeStore'
+import { useHomeStore } from '@/stores/homeStoreContext'
 import { usePullToRefresh } from '@/hooks/usePullToRefresh'
 import { PublishingBanner } from '@/features/post/components/PublishingBanner'
 import { useDebugRootMargin } from '@/hooks/useDebugRootMargin'
@@ -20,9 +20,47 @@ interface HomePageClientProps {
   initialPosts: IPost[]
 }
 
-const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
-  // 开发环境可通过 window.__setRootMargin('0px 0px 200px 0px') 实时调试
+// 移动端默认宽度假设（用于 SSR）
+const MOBILE_DEFAULT_WIDTH = 375
+const PADDING_AND_GAP = 12
+const DEFAULT_COLUMN_WIDTH = (MOBILE_DEFAULT_WIDTH - PADDING_AND_GAP) / 2
+
+/**
+ * 自定义 hook：封装 home store 的常用选择器
+ */
+const useHomeStoreSelectors = () => {
+  const posts = useHomeStore(state => state.posts)
+  const nextCursor = useHomeStore(state => state.nextCursor)
+  const hasNextPage = useHomeStore(state => state.hasNextPage)
+  const scrollPosition = useHomeStore(state => state.scrollPosition)
+  const setPosts = useHomeStore(state => state.setPosts)
+  const setPagination = useHomeStore(state => state.setPagination)
+  const setScrollPosition = useHomeStore(state => state.setScrollPosition)
+  const addViewedPostIds = useHomeStore(state => state.addViewedPostIds)
+  const getExcludeIds = useHomeStore(state => state.getExcludeIds)
+  const clearViewedPostIds = useHomeStore(state => state.clearViewedPostIds)
+  const postHeights = useHomeStore(state => state.postHeights)
+  const setPostHeight = useHomeStore(state => state.setPostHeight)
+
+  return {
+    posts,
+    nextCursor,
+    hasNextPage,
+    scrollPosition,
+    setPosts,
+    setPagination,
+    setScrollPosition,
+    addViewedPostIds,
+    getExcludeIds,
+    clearViewedPostIds,
+    postHeights,
+    setPostHeight,
+  }
+}
+
+const HomePageContent = ({ initialPosts }: HomePageClientProps) => {
   const rootMargin = useDebugRootMargin()
+  const router = useRouter()
 
   const {
     posts,
@@ -35,26 +73,47 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
     addViewedPostIds,
     getExcludeIds,
     clearViewedPostIds,
-  } = useHomeStore()
+    postHeights,
+    setPostHeight,
+  } = useHomeStoreSelectors()
 
-  const [isInitialLoading, setIsInitialLoading] = useState(false) // 首次加载状态
-  const [isLoadingMore, setIsLoadingMore] = useState(false) // 加载更多状态
+  const [isInitialLoading, setIsInitialLoading] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [containerHeight, setContainerHeight] = useState(0) // 容器高度，用于虚拟化
+  const [containerHeight, setContainerHeight] = useState(0)
+  const [columnWidth, setColumnWidth] = useState(DEFAULT_COLUMN_WIDTH)
 
-  // 移动端竖屏场景，宽度固定，直接计算一次
-  // 逻辑：(屏幕宽度 - 左右padding 8px - 中间gap 4px) / 2
-  const [columnWidth, setColumnWidth] = useState(0)
+  // 跟踪是否已经用 SSR 数据初始化过
+  const hasHydratedRef = useRef(false)
 
+  // 响应式宽度调整
   useEffect(() => {
     setContainerHeight(window.innerHeight)
-    setColumnWidth((window.innerWidth - 12) / 2)
+    setColumnWidth((window.innerWidth - PADDING_AND_GAP) / 2)
   }, [])
 
-  // 计算属性，判断页面是否为空（既没数据也没在加载）
+  // SSR 数据初始化：只在首次且 store 为空时使用 initialPosts
+  useEffect(() => {
+    if (
+      !hasHydratedRef.current &&
+      posts.length === 0 &&
+      initialPosts.length > 0
+    ) {
+      setPosts(initialPosts)
+      const postIds = initialPosts.map(p => p._id)
+      addViewedPostIds(postIds)
+      setPagination(null, true)
+      hasHydratedRef.current = true
+    }
+  }, [initialPosts, posts.length, setPosts, addViewedPostIds, setPagination])
+
+  // 使用 store 中的 posts，不再回退到 initialPosts
+  // 这样确保从其他页面返回时，数据和布局保持一致
+  const renderPosts = posts
+
   const isEmpty = useMemo(
-    () => !posts.length && !isInitialLoading,
-    [posts, isInitialLoading]
+    () => !renderPosts.length && !isInitialLoading,
+    [renderPosts.length, isInitialLoading]
   )
 
   const fetchPosts = useCallback(
@@ -62,7 +121,6 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
       const { cursor, append = false } = options ?? {}
       setError(null)
 
-      // 根据是“刷新”还是“加载更多”设置不同的 Loading 状态
       if (append) {
         setIsLoadingMore(true)
       } else {
@@ -70,25 +128,22 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
       }
 
       try {
-        // 获取需要去重的笔记 ID（已展示过的 + 当前展示的）
         const allExcludeIds = getExcludeIds()
-        // 限制传递给后端的去重 ID 数量，防止 URL 过长导致 431 错误，保留最近浏览的 50 条记录进行去重即可
+        // 限制传递给后端的去重 ID 数量，防止 URL 过长
         const excludeIds = allExcludeIds.slice(-50)
 
         const { data } = await api.get<PostsResponse>('/posts', {
           params: {
             cursor: cursor ?? undefined,
             limit: FETCH_LIMIT,
-            // 传递排除 ID，用于避免重复展示
             excludeIds:
               excludeIds.length > 0 ? excludeIds.join(',') : undefined,
           },
         })
 
-        // data.posts already contain formatted IPost objects from the API
         const fetchedPosts = data.posts ?? []
 
-        // 记录本次获取的帖子 ID 到已浏览列表
+        // 记录本次获取的帖子 ID
         const newPostIds = fetchedPosts.map(p => p._id)
         if (newPostIds.length > 0) {
           addViewedPostIds(newPostIds)
@@ -98,27 +153,22 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
           setPosts(fetchedPosts)
         } else {
           setPosts(prevPosts => {
-            // 获取现有列表中所有的 ID，存入 Set
             const existingIds = new Set(prevPosts.map(p => p._id))
-            // 过滤掉新数据中已存在的 ID
             const newPosts = fetchedPosts.filter(p => !existingIds.has(p._id))
-            // 合并数据
             return [...prevPosts, ...newPosts]
           })
         }
 
-        // 更新分页信息
         setPagination(
           data.pagination?.nextCursor ?? null,
           Boolean(data.pagination?.hasNextPage)
         )
       } catch (err) {
-        console.error(err)
+        console.error('Failed to fetch posts:', err)
         setError(
           err instanceof Error ? err.message : '获取帖子列表失败，请稍后再试'
         )
       } finally {
-        // 关闭对应 Loading 状态
         if (append) {
           setIsLoadingMore(false)
         } else {
@@ -129,47 +179,25 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
     [setPagination, setPosts, addViewedPostIds, getExcludeIds]
   )
 
-  // 初始化：使用 SSR 数据 hydrate store
-  useEffect(() => {
-    if (posts.length === 0 && initialPosts.length > 0) {
-      // initialPosts are already formatted IPost objects from SSR
-      setPosts(initialPosts)
-      const newPostIds = initialPosts.map(p => p._id)
-      if (newPostIds.length > 0) {
-        addViewedPostIds(newPostIds)
-      }
-      // 假设 SSR 返回的数据没有分页信息，或者需要另外处理分页
-      // 这里简单处理，如果有数据，假设有下一页（或者需要后端返回分页信息）
-      // 更好的做法是 SSR 也返回 pagination info
-      setPagination(null, true)
-    }
-  }, [initialPosts, posts.length, setPosts, addViewedPostIds, setPagination])
-
-  // 滚动容器 ref
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  // 下拉刷新指示器 ref
   const indicatorRef = useRef<HTMLDivElement>(null)
+  const hasRestoredPosition = useRef(false)
+  const observerTarget = useRef<HTMLDivElement>(null)
 
-  const hasRestoredPosition = useRef(false) // 滚动位置是否已经恢复过
-
+  // 恢复滚动位置
   useEffect(() => {
     const container = scrollContainerRef.current
-    if (!container) return
+    if (!container || columnWidth <= 0 || hasRestoredPosition.current) return
 
-    // 只有当布局准备好（columnWidth > 0）且有数据时，才尝试恢复滚动位置
-    if (columnWidth > 0 && !hasRestoredPosition.current) {
-      if (scrollPosition > 0) {
-        // 稍微延迟一下，确保 DOM 已经渲染
-        requestAnimationFrame(() => {
-          container.scrollTop = scrollPosition
-          hasRestoredPosition.current = true
-        })
-      } else {
+    if (scrollPosition > 0) {
+      requestAnimationFrame(() => {
+        container.scrollTop = scrollPosition
         hasRestoredPosition.current = true
-      }
+      })
+    } else {
+      hasRestoredPosition.current = true
     }
 
-    // 使用 ResizeObserver 监听容器高度变化
     const observer = new ResizeObserver(entries => {
       if (entries[0]) {
         setContainerHeight(entries[0].contentRect.height)
@@ -178,10 +206,8 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
 
     observer.observe(container)
     return () => observer.disconnect()
-    // eslint-disable-next-line
-  }, [columnWidth, posts.length])
+  }, [columnWidth, scrollPosition])
 
-  // 监听滚动保存位置
   const handleScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       const target = e.target as HTMLDivElement
@@ -190,11 +216,6 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
     [setScrollPosition]
   )
 
-  const router = useRouter()
-
-  /**
-   * 点击卡片事件
-   */
   const handlePostClick = useCallback(
     (postId: string) => {
       router.push(`/post/${postId}`)
@@ -202,17 +223,12 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
     [router]
   )
 
-  /**
-   * 下拉刷新
-   */
   const handleRefresh = useCallback(async () => {
     if (isInitialLoading) return
-    // 清空已浏览记录，获取全新内容
     clearViewedPostIds()
     await fetchPosts()
   }, [fetchPosts, isInitialLoading, clearViewedPostIds])
 
-  // 下拉刷新 Hook
   const { state: pullState } = usePullToRefresh({
     containerRef: scrollContainerRef,
     indicatorRef,
@@ -220,29 +236,22 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
     disabled: isInitialLoading,
   })
 
-  /**
-   * 加载更多
-   */
   const handleLoadMore = useCallback(() => {
-    if (!hasNextPage || isLoadingMore) return // 没数据或正在加载则不执行
+    if (!hasNextPage || isLoadingMore) return
     fetchPosts({ cursor: nextCursor, append: true })
   }, [fetchPosts, hasNextPage, isLoadingMore, nextCursor])
 
-  // 滚动加载的监听 ref 绑定在页面最底部的一个 div 上
-  const observerTarget = useRef<HTMLDivElement>(null)
-
+  // 无限滚动监听
   useEffect(() => {
     const element = observerTarget.current
     const root = scrollContainerRef.current
-    // 如果没有元素、没有下一页、或者正在加载，就不监听
     if (!element || !hasNextPage || isLoadingMore) return
 
     const observer = new IntersectionObserver(
       entries => {
         const first = entries[0]
-        // 当底部元素进入预留区域时
         if (first && first.isIntersecting) {
-          handleLoadMore() // 触发加载更多
+          handleLoadMore()
         }
       },
       {
@@ -253,18 +262,25 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
     )
 
     observer.observe(element)
-    return () => observer.disconnect() // 组件卸载或依赖变化时销毁监听
+    return () => observer.disconnect()
   }, [hasNextPage, isLoadingMore, handleLoadMore, rootMargin])
 
-  // 预计算高度，避免渲染时重复计算
-  // 只有当 posts 变化时才重新计算
+  // 预计算高度
   const postsWithMeta = useMemo(() => {
     if (!columnWidth) return []
-    return posts.map(post => ({
-      ...post,
-      _estimatedHeight: calculatePostHeight(post, columnWidth),
-    }))
-  }, [posts, columnWidth])
+    return renderPosts.map(post => {
+      const cachedHeight = postHeights[post._id]
+      const estimatedHeight = calculatePostHeight(post, columnWidth)
+
+      return {
+        ...post,
+        _estimatedHeight:
+          typeof cachedHeight === 'number' && cachedHeight > 0
+            ? cachedHeight
+            : estimatedHeight,
+      }
+    })
+  }, [renderPosts, columnWidth, postHeights])
 
   const renderPostItem = useCallback(
     (post: IPost & { _estimatedHeight: number }, index: number) => {
@@ -273,7 +289,6 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
           post={post}
           onClick={() => handlePostClick(post._id)}
           priority={index < PRIORITY_LIMIT}
-          // 瀑布流容器已经做了虚拟化（只渲染可见区域+缓冲区），因此对于渲染出来的卡片，需要图片尽快加载，避免二次闪烁
           loading="eager"
         />
       )
@@ -308,8 +323,8 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
         {/* 下拉刷新指示器 */}
         <PullToRefreshIndicator ref={indicatorRef} state={pullState} />
 
-        {/* 首屏加载时显示骨架屏，与 HTML 骨架屏视觉一致，避免跳跃 */}
-        {isInitialLoading && !posts.length ? <HomePageSkeleton /> : null}
+        {/* 首屏加载骨架屏 */}
+        {isInitialLoading && !renderPosts.length ? <HomePageSkeleton /> : null}
 
         {/* 瀑布流容器 */}
         {!isEmpty && columnWidth > 0 && (
@@ -320,11 +335,13 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
             estimateHeight={estimatePostHeight}
             scrollTop={scrollPosition}
             containerHeight={containerHeight}
+            initialHeights={postHeights}
+            onHeightChange={setPostHeight}
           />
         )}
 
-        {/* 底部错误提示 */}
-        {error && posts.length ? (
+        {/* 错误提示 */}
+        {error && renderPosts.length ? (
           <div className="px-4 pt-4">
             <div className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
               {error}
@@ -332,8 +349,8 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
           </div>
         ) : null}
 
+        {/* 底部加载状态 */}
         <div className="flex w-full justify-center px-4 py-6">
-          {/* 无限滚动触发器 */}
           {hasNextPage ? (
             <div
               ref={observerTarget}
@@ -347,13 +364,17 @@ const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
                 <span className="opacity-0">加载更多</span>
               )}
             </div>
-          ) : posts.length ? (
+          ) : renderPosts.length ? (
             <p className="text-xs text-muted-foreground">没有更多内容了</p>
           ) : null}
         </div>
       </div>
     </div>
   )
+}
+
+const HomePageClient = ({ initialPosts }: HomePageClientProps) => {
+  return <HomePageContent initialPosts={initialPosts} />
 }
 
 export default HomePageClient

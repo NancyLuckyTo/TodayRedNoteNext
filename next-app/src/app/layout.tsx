@@ -1,7 +1,7 @@
 import './globals.css'
 import { Providers } from '@/components/providers/Providers'
 import BottomNav from '@/components/layout/BottomNav'
-import { GlobalPublisher } from '@/components/features/GlobalPublisher'
+import { DynamicGlobalPublisher } from '@/components/features/DynamicGlobalPublisher'
 
 export const metadata = {
   title: '今日红书 - 你的头条指南',
@@ -17,7 +17,7 @@ export default function RootLayout({
     <html lang="zh-CN" suppressHydrationWarning>
       <body>
         <Providers>
-          <GlobalPublisher />
+          <DynamicGlobalPublisher />
           <div className="flex min-h-screen justify-center bg-gray-50">
             <div className="relative w-full max-w-md min-h-screen shadow-lg">
               {children}

@@ -16,6 +16,7 @@ interface WaterfallContainerProps<T> {
   containerHeight?: number // 容器高度
   overscan?: number // 缓冲区大小
   onHeightChange?: (key: string, height: number) => void // 高度变化回调
+  initialHeights?: Record<string, number> // 初始高度缓存，用于跨挂载复用
 }
 
 // 经过计算后，每个卡片携带的布局信息
@@ -92,21 +93,30 @@ export function WaterfallContainer<T>({
   scrollTop = 0,
   containerHeight = CONTAINER_HEIGHT,
   overscan = OVERSCAN_HEIGHT,
+  onHeightChange,
+  initialHeights,
 }: WaterfallContainerProps<T>) {
   // 存储所有卡片的真实高度。Key 是卡片的唯一 ID，Value 是高度
   // 初始为空，随着卡片渲染，MeasuredItem 会回调填充这里的数据
   const [measuredHeights, setMeasuredHeights] = useState<
     Record<string, number>
-  >({})
+  >(() => initialHeights ?? {})
 
   // 处理高度变化
-  const handleHeightChange = useCallback((key: string, height: number) => {
-    setMeasuredHeights(prev => {
-      // 优化：只有高度差超过 1px 才更新状态，避免小数精度导致的无限重渲染循环
-      if (Math.abs((prev[key] || 0) - height) < 1) return prev
-      return { ...prev, [key]: height }
-    })
-  }, [])
+  const handleHeightChange = useCallback(
+    (key: string, height: number) => {
+      setMeasuredHeights(prev => {
+        // 优化：只有高度差超过 1px 才更新状态，避免小数精度导致的无限重渲染循环
+        if (Math.abs((prev[key] || 0) - height) < 1) return prev
+        return { ...prev, [key]: height }
+      })
+
+      if (onHeightChange) {
+        onHeightChange(key, height)
+      }
+    },
+    [onHeightChange]
+  )
 
   // 1. 计算布局 (将所有 items 分配到两列)
   // 这是一个纯计算过程，依赖 items 和 measuredHeights

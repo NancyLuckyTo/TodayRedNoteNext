@@ -12,7 +12,7 @@ import { draftStorage } from '@/lib/draftStorage'
 export const GlobalPublisher = () => {
   const { publishingTask, status, setSuccess, setError } = usePublishingStore()
   const { mutate: createPost } = useCreatePost()
-  
+
   // 防止重复提交
   const isProcessingRef = useRef(false)
 
@@ -24,8 +24,9 @@ export const GlobalPublisher = () => {
 
     const processTask = async () => {
       isProcessingRef.current = true
-      
-      const { data, images, existingImages, draftId, cloudDraftId } = publishingTask
+
+      const { data, images, existingImages, draftId, cloudDraftId } =
+        publishingTask
 
       createPost(
         {
@@ -34,7 +35,7 @@ export const GlobalPublisher = () => {
           existingImages,
         },
         {
-          onSuccess: async (post) => {
+          onSuccess: async post => {
             // 发布成功，清理草稿
             if (draftId) {
               draftStorage.clearLocal()
@@ -42,11 +43,11 @@ export const GlobalPublisher = () => {
             if (cloudDraftId && draftStorage.isOnline()) {
               await draftStorage.deleteCloud(cloudDraftId)
             }
-            
+
             setSuccess(post._id)
             isProcessingRef.current = false
           },
-          onError: (err) => {
+          onError: err => {
             console.error('GlobalPublisher error:', err)
             setError(err.message || '发布失败，请重试')
             isProcessingRef.current = false
