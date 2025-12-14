@@ -6,14 +6,15 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         default: 'bg-primary text-primary-foreground ',
-        redButton: 'bg-red-500  text-white',
+        redButton: 'bg-red-500 text-white',
         outline: 'border bg-background shadow-xs',
         secondary: 'bg-secondary text-secondary-foreground',
         link: 'text-primary underline-offset-4',
+        ghost: '',
       },
       size: {
         default: 'h-7 px-4 py-4 has-[>svg]:px-3 rounded-full',
-        sm: 'h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5',
+        sm: 'h-6 px-3 py-3.5 has-[>svg]:px-2 rounded-full',
         lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',
         icon: 'size-9',
         'icon-sm': 'size-8',

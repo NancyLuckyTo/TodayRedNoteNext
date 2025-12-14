@@ -312,7 +312,7 @@ export default function PostEditorClient({
 
   return (
     <div className="min-h-screen bg-white pb-24">
-      <div className="sticky top-0 bg-white px-4 py-3 flex items-center justify-between z-10 border-b border-gray-100">
+      <div className="sticky top-0 bg-white px-4 py-1 flex items-center justify-between z-50">
         <Button
           type="button"
           variant="ghost"
@@ -336,6 +336,7 @@ export default function PostEditorClient({
           <Button
             type="submit"
             variant="redButton"
+            size="sm"
             form={formId}
             disabled={isPending}
           >

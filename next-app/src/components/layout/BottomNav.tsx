@@ -32,7 +32,10 @@ const BottomNav = () => {
   }
 
   const getTargetPath = (item: NavItem) => {
-    if (item.path === '/profile' && !isAuthenticated) {
+    if (
+      (item.path === '/profile' || item.path === '/createPost') &&
+      !isAuthenticated
+    ) {
       return '/login'
     }
     return item.path
