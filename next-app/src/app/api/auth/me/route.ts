@@ -8,7 +8,7 @@ export async function GET() {
   const session = await getSession()
 
   if (!session || !session.userId) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ user: null })
   }
 
   await connectDB()
@@ -18,12 +18,12 @@ export async function GET() {
   )
 
   if (!user) {
-    return NextResponse.json({ message: 'Not found' }, { status: 404 })
+    return NextResponse.json({ user: null })
   }
 
   return NextResponse.json({
     user: {
-      id: user.id,
+      _id: user.id,
       username: user.username,
       createdAt: user.createdAt,
     },

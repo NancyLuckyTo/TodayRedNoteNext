@@ -34,11 +34,11 @@ export const useAuthStore = create<AuthState>(set => ({
   },
   initialize: async () => {
     try {
-      const { data } = await api.get<{ user: User }>('/auth/me')
+      const { data } = await api.get<{ user: User | null }>('/auth/me')
       if (data.user) {
         set({ user: data.user, isAuthenticated: true })
       }
-    } catch (error) {
+    } catch {
       // 这里的 401 是预期的，表示未登录
       set({ user: null, isAuthenticated: false })
     }
