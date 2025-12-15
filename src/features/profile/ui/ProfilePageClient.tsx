@@ -15,6 +15,7 @@ import { useProfilePostsStore } from '@/stores/profilePostsStore'
 import type { PostsResponse } from '@/types/posts'
 import { ROOT_MARGIN_VALUE } from '@/constants/post'
 import { FETCH_LIMIT, PRIORITY_LIMIT, type IPost } from '@today-red-note/types'
+import Image from 'next/image'
 
 const ProfilePage = () => {
   const router = useRouter()
@@ -216,11 +217,14 @@ const ProfilePage = () => {
         {/* 头像、昵称、简介 */}
         <div className="flex items-start gap-4 mb-6">
           <div className="relative">
-            <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-400">
-              <img
+            <div className="relative w-24 h-24 rounded-full overflow-hidden bg-gray-400 shrink-0">
+              <Image
                 src={getDefaultAvatar(user?.username, 96)}
-                alt="avatar"
+                alt={user?.username || 'avatar'}
+                fill
                 className="w-full h-full object-cover"
+                sizes="96px"
+                unoptimized // UI Avatar 已经是小图，不需要优化
               />
             </div>
             {/* 黄色加号按钮 */}
@@ -243,7 +247,7 @@ const ProfilePage = () => {
               <span>今日号: 18923080116</span>
             </div>
             <div className="flex items-center gap-1 text-gray-200 text-sm">
-              <span>IP 属地: 湖北</span>
+              <span>IP 属地: 北京</span>
               <Info className="w-3.5 h-3.5" />
             </div>
           </div>

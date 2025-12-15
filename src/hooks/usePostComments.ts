@@ -13,10 +13,8 @@ export const usePostComments = (postId: string, enabled: boolean) => {
     queryKey: ['comments', postId],
     enabled: Boolean(postId) && enabled,
     queryFn: async () => {
-      const { data } = await api.get<{ comments: IComment[] }>(
-        `/posts/${postId}/comments`
-      )
-      return data.comments ?? []
+      const { data } = await api.get<IComment[]>(`/posts/${postId}/comments`)
+      return data ?? []
     },
   })
 }

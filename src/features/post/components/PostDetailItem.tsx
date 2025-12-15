@@ -9,6 +9,7 @@ import {
   Pencil,
   Trash2,
 } from 'lucide-react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
@@ -30,11 +31,13 @@ import {
 } from '@/components/ui/alert-dialog'
 import { getDefaultAvatar } from '@/lib/avatarUtils'
 import type { IPost } from '@today-red-note/types'
-import { RichTextEditor } from '@/features/post/edit/RichTextEditor'
+import { IMAGE_RATIO } from '@today-red-note/types'
 import { useAuthStore } from '@/stores/auth'
 import { useDeletePost } from '@/hooks/useDeletePost'
 import { usePostComments } from '@/hooks/usePostComments'
 import { useAddComment } from '@/hooks/useAddComment'
+import { cn } from '@/lib/utils'
+import { getAspectRatio } from '@/lib/postUtils'
 
 interface PostDetailItemProps {
   post: IPost
@@ -45,7 +48,15 @@ export function PostDetailItem({
   post,
   defaultCommentsOpen = false,
 }: PostDetailItemProps) {
-  const { author, body, images, likesCount = 0, createdAt, commentCount } = post
+  const {
+    author,
+    body,
+    images,
+    likesCount = 0,
+    createdAt,
+    commentCount,
+    coverRatio,
+  } = post
   const router = useRouter()
   const pathname = usePathname()
   const user = useAuthStore(state => state.user)
@@ -53,11 +64,16 @@ export function PostDetailItem({
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [commentsOpen, setCommentsOpen] = useState(defaultCommentsOpen)
   const [commentContent, setCommentContent] = useState('')
+  const [activeImageIndex, setActiveImageIndex] = useState(0)
 
-  const { data: comments = [], isLoading: commentsLoading } = usePostComments(
-    post._id,
-    commentsOpen
-  )
+  // 与首页保持一致：只区分横图/竖图两种比例
+  const aspectRatio = getAspectRatio(coverRatio || IMAGE_RATIO.PORTRAIT)
+
+  const {
+    data: comments = [],
+    isLoading: commentsLoading,
+    isError: commentsError,
+  } = usePostComments(post._id, commentsOpen)
   const { mutate: addComment, isPending: isAdding } = useAddComment(post._id)
 
   const { mutate: deletePost, isPending: isDeleting } = useDeletePost()
@@ -102,11 +118,16 @@ export function PostDetailItem({
       {/* 作者信息 */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
-          <img
-            src={author.avatar || getDefaultAvatar(author.username)}
-            alt={author.username}
-            className="h-10 w-10 rounded-full object-cover border border-border"
-          />
+          <div className="relative w-10 h-10 rounded-full overflow-hidden shrink-0">
+            <Image
+              src={author.avatar || getDefaultAvatar(author.username)}
+              alt={author.username}
+              fill
+              className="object-cover"
+              sizes="16px"
+              unoptimized // UI Avatar 已经是小图，不需要优化
+            />
+          </div>
           <div className="flex flex-col">
             <span className="text-sm font-medium text-black">
               {author.username}
@@ -184,40 +205,67 @@ export function PostDetailItem({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* 笔记正文，使用 TipTap 只读模式渲染富文本 */}
-      <div className="px-4">
-        <RichTextEditor
-          content={body}
-          onChange={() => {}}
-          disabled={true}
-          className="min-h-0 text-lg text-black"
-        />
-      </div>
-
-      {/* 图片展示 */}
+      {/* 图片展示：占据整行宽度的 Gallery（仅横图/竖图两种比例） */}
       {images && images.length > 0 && (
-        <div className="mt-4 flex gap-2 overflow-x-auto px-4 pb-2 scrollbar-hide snap-x">
-          {images.map((img: string | { url: string }, index: number) => {
-            const imageUrl = typeof img === 'string' ? img : img.url
-            return (
-              <div
-                key={index}
-                className="relative h-48 w-auto shrink-0 overflow-hidden rounded-sm"
-              >
-                <img
-                  src={imageUrl}
-                  alt={`Post image ${index + 1}`}
-                  className="h-full w-auto object-cover"
+        <div className="w-full">
+          <div
+            className="w-full overflow-x-auto scrollbar-hide snap-x snap-mandatory"
+            onScroll={event => {
+              const target = event.currentTarget
+              const { scrollLeft, clientWidth } = target
+              if (!clientWidth) return
+              const rawIndex = scrollLeft / clientWidth
+              const index = Math.round(rawIndex)
+              if (index >= 0 && index < images.length) {
+                setActiveImageIndex(index)
+              }
+            }}
+          >
+            <div className="flex w-full">
+              {images.map((img: IPost['images'][number], index) => (
+                <div
+                  key={index}
+                  className="relative w-full shrink-0 snap-center bg-muted"
+                  style={{ aspectRatio }}
+                >
+                  <Image
+                    src={img.url}
+                    alt={`Post image ${index + 1}`}
+                    fill
+                    className="object-cover"
+                    sizes="100vw"
+                    unoptimized={img.url?.includes('x-oss-process')}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {images.length > 1 && (
+            <div className="mt-2 flex items-center justify-center gap-1.5">
+              {images.map((_, index) => (
+                <span
+                  key={index}
+                  className={cn(
+                    'h-1.5 w-1.5 rounded-full bg-gray-300 transition-all',
+                    index === activeImageIndex && 'w-3 bg-gray-600'
+                  )}
                 />
-              </div>
-            )
-          })}
+              ))}
+            </div>
+          )}
         </div>
       )}
 
+      {/* 笔记正文 */}
+      <div
+        className="px-4 pt-2 pb-3 text-[18px] leading-relaxed text-black [&_h1]:text-xl [&_h1]:font-semibold [&_h1]:mt-2 [&_h1]:mb-1 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1 [&_p]:mt-2 [&_p]:mb-0 [&_ul]:mt-2 [&_ul]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-2 [&_ol]:mb-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-4 [&_blockquote]:border-gray-200 [&_blockquote]:pl-3 [&_blockquote]:italic"
+        dangerouslySetInnerHTML={{ __html: body }}
+      />
+
       {((post.topic && post.topic.name) ||
         (post.tags && post.tags.length > 0)) && (
-        <div className="px-6 pb-2 mt-2 flex flex-wrap gap-2">
+        <div className="px-6 pb-2  flex flex-wrap gap-2">
           {/* 话题 - 点击跳转到新建笔记页并自动填充话题 */}
           {post.topic && post.topic.name && (
             <button
@@ -252,13 +300,26 @@ export function PostDetailItem({
           <Share className="h-5 w-5" />
         </div>
 
-        <div
-          className="flex flex-1 items-center justify-center gap-1 cursor-pointer"
+        <button
+          type="button"
+          className={cn(
+            'flex flex-1 items-center justify-center gap-1 cursor-pointer transition-colors',
+            commentsOpen && 'text-red-500'
+          )}
           onClick={() => setCommentsOpen(prev => !prev)}
+          aria-expanded={commentsOpen}
+          aria-label="切换评论区"
         >
-          <MessageCircleMore className="h-5 w-5" />
-          <span className="text-xs">{commentCount}</span>
-        </div>
+          <MessageCircleMore
+            className={cn(
+              'h-5 w-5',
+              commentsOpen && 'fill-red-200 text-red-500'
+            )}
+          />
+          <span className={cn('text-xs', commentsOpen && 'text-red-500')}>
+            {commentCount}
+          </span>
+        </button>
 
         <div className="flex flex-1 items-center justify-center gap-1">
           <Heart className="h-5 w-5" />
@@ -277,14 +338,25 @@ export function PostDetailItem({
             <div className="h-px w-20 bg-linear-to-r from-transparent via-border to-transparent" />
           </div>
 
-          {commentsLoading || comments.length === 0 ? (
+          {commentsLoading ? (
             <div className="flex flex-col items-center justify-center py-8 gap-3">
               <div className="flex items-center justify-center h-16 w-16 rounded-full bg-secondary/80">
-                {commentsLoading ? (
-                  <Spinner className="size-6 text-muted-foreground" />
-                ) : (
-                  <MessageCircleHeart className="h-9 w-9 text-red-300" />
-                )}
+                <Spinner className="size-6 text-muted-foreground" />
+              </div>
+              <span className="text-xs text-muted-foreground">
+                正在加载评论...
+              </span>
+            </div>
+          ) : commentsError ? (
+            <div className="flex items-center justify-center py-4">
+              <span className="text-xs text-destructive">
+                评论加载失败，请稍后重试
+              </span>
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-3">
+              <div className="flex items-center justify-center h-16 w-16 rounded-full bg-secondary/80">
+                <MessageCircleHeart className="h-9 w-9 text-red-300" />
               </div>
               <span className="text-xs text-muted-foreground">
                 发条评论表达你的想法吧
@@ -294,20 +366,22 @@ export function PostDetailItem({
             <div className="space-y-4">
               {comments.map(comment => (
                 <div key={comment._id} className="flex gap-2">
-                  <img
-                    src={
-                      comment.author.avatar ||
-                      getDefaultAvatar(comment.author.username)
-                    }
-                    alt={comment.author.username}
-                    className="h-7 w-7 rounded-full object-cover border border-border"
-                  />
+                  <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0">
+                    <Image
+                      src={author.avatar || getDefaultAvatar(author.username)}
+                      alt={author.username}
+                      fill
+                      className="object-cover"
+                      sizes="16px"
+                      unoptimized // UI Avatar 已经是小图，不需要优化
+                    />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium">
+                      <span className="text-xs font-medium text-gray-500">
                         {comment.author.username}
                       </span>
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {new Intl.DateTimeFormat('zh-CN', {
                           month: '2-digit',
                           day: '2-digit',
@@ -316,7 +390,7 @@ export function PostDetailItem({
                           .replace(/\//g, '-')}
                       </span>
                     </div>
-                    <p className="mt-0.5 text-xs wrap-break-word">
+                    <p className="mt-0.5 text-sm wrap-break-word">
                       {comment.content}
                     </p>
                   </div>
