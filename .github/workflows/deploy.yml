@@ -55,7 +55,8 @@ jobs:
           TARGET: '/var/www/today-red-note' # 服务器目标路径
           SCRIPT_AFTER: |
             cd /var/www/today-red-note
-            pnpm install --prod # 只安装生产环境依赖
+            export CI=true && pnpm install --prod # 只安装生产环境依赖
+            pm2 reload today-red-note || pm2 start ecosystem.config.js # 尝试重载，如果失败（比如进程不存在）则执行启动
             # Check if .env exists
             if [ ! -f .env ]; then
               echo "WARNING: .env file not found! Application may fail to start."
