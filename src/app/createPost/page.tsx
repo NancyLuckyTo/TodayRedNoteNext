@@ -1,5 +1,6 @@
 import PostEditorClient from '@/features/post/ui/PostEditorClient'
 import { Suspense } from 'react'
+import { Spinner } from '@/components/ui/spinner'
 
 export default function CreatePostPage({
   searchParams,
@@ -7,7 +8,13 @@ export default function CreatePostPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense
+      fallback={
+        <div className="flex h-dvh items-center justify-center">
+          <Spinner />
+        </div>
+      }
+    >
       <SearchParamsWrapper searchParams={searchParams} />
     </Suspense>
   )

@@ -1,3 +1,4 @@
+import type { Viewport } from 'next'
 import './globals.css'
 import { Providers } from '@/components/providers/Providers'
 import BottomNav from '@/components/layout/BottomNav'
@@ -6,6 +7,13 @@ import { DynamicGlobalPublisher } from '@/components/features/DynamicGlobalPubli
 export const metadata = {
   title: '今日红书 - 你的头条指南',
   description: '你想看的奇闻趣事都在这里！',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 }
 
 export default function RootLayout({
