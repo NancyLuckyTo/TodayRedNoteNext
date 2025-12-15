@@ -10,7 +10,7 @@ import type { IPost } from '@today-red-note/types'
 import { PostDetailItem } from '@/features/post/components/PostDetailItem'
 import { useRelatedPosts } from '@/features/post/hooks/useRelatedPosts'
 
-const ROOT_MARGIN_VALUE = '1200px'
+const ROOT_MARGIN_VALUE = '2000px'
 
 interface PostDetailClientProps {
   post: IPost
