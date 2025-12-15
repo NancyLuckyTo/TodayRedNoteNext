@@ -1,0 +1,51 @@
+name: Deploy to Aliyun
+
+on:
+  push:
+    branches:
+      - main # 当 main 分支有代码推送时触发
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Project
+        run: pnpm build
+        env:
+          # 配置构建所需的环境变量
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+
+      - name: Deploy to Server
+        uses: easingthemes/ssh-deploy@main
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
+          ARGS: '-rlgoDzvc -i'
+          SOURCE: '.next/ public/ package.json pnpm-lock.yaml next.config.ts ecosystem.config.js' # 只上传构建产物和必要配置
+          REMOTE_HOST: ${{ secrets.HOST }}
+          REMOTE_USER: ${{ secrets.USERNAME }}
+          TARGET: '/var/www/today-red-note' # 服务器目标路径
+          SCRIPT_AFTER: |
+            cd /var/www/today-red-note
+            pnpm install --prod # 只安装生产环境依赖
+            # Check if .env exists
+            if [ ! -f .env ]; then
+              echo "WARNING: .env file not found! Application may fail to start."
+            fi
+            # Start or reload with PM2
+            pm2 startOrReload ecosystem.config.js
