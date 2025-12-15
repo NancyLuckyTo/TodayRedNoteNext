@@ -49,7 +49,7 @@ jobs:
         with:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
           ARGS: '-rlgoDzvc -i'
-          SOURCE: '.next/ public/ package.json pnpm-lock.yaml next.config.ts ecosystem.config.js' # 只上传构建产物和必要配置
+          SOURCE: '.next public package.json pnpm-lock.yaml next.config.ts ecosystem.config.js' # 只上传构建产物和必要配置
           REMOTE_HOST: ${{ secrets.HOST }}
           REMOTE_USER: ${{ secrets.USERNAME }}
           TARGET: '/var/www/today-red-note' # 服务器目标路径
