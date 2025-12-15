@@ -1,16 +1,14 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, Search, MoreHorizontal } from 'lucide-react'
-import api from '@/lib/api'
 import { Spinner } from '@/components/ui/spinner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { normalizePost } from '@/lib/postUtils'
 import type { IPost } from '@today-red-note/types'
-import type { PostsResponse } from '@/types/posts'
 import { PostDetailItem } from '@/features/post/components/PostDetailItem'
+import { useRelatedPosts } from '@/features/post/hooks/useRelatedPosts'
 
 const ROOT_MARGIN_VALUE = '1200px'
 
@@ -27,89 +25,22 @@ export default function PostDetailClient({
   const disableRecommendations =
     searchParams.get('disableRecommendations') === 'true'
 
-  const [posts, setPosts] = useState<IPost[]>([normalizePost(initialPost)]) // 存储笔记列表
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { posts, isLoadingMore, hasNextPage, loadMoreRelatedPosts } =
+    useRelatedPosts({
+      initialPost,
+      disableRecommendations,
+    })
 
-  // 滚动加载相关
   const observerTarget = useRef<HTMLDivElement>(null)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [shouldLoadRelated, setShouldLoadRelated] = useState(
-    !disableRecommendations
-  )
-
-  // 分页相关状态
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
-  const [hasNextPage, setHasNextPage] = useState(true)
-  const viewedPostIdsRef = useRef<Set<string>>(new Set([initialPost._id]))
-
-  /**
-   * 加载更多相关笔记（支持三阶段推荐：related -> profile -> fallback）
-   */
-  const loadMoreRelatedPosts = useCallback(async () => {
-    if (
-      disableRecommendations ||
-      isLoadingMore ||
-      !initialPost._id ||
-      !hasNextPage
-    )
-      return
-
-    try {
-      setIsLoadingMore(true)
-
-      // 构建 excludeIds 参数（排除已展示的笔记）
-      const excludeIds = Array.from(viewedPostIdsRef.current)
-
-      // 获取相关笔记（支持分页）
-      const { data } = await api.get<PostsResponse>(
-        `/posts/${initialPost._id}/related`,
-        {
-          params: {
-            cursor: nextCursor ?? undefined,
-            excludeIds:
-              excludeIds.length > 0 ? excludeIds.join(',') : undefined,
-          },
-        }
-      )
-
-      const newPosts = (data.posts ?? []).map(normalizePost)
-
-      // 记录本次获取的笔记 ID
-      newPosts.forEach((p: IPost) => viewedPostIdsRef.current.add(p._id))
-
-      // 过滤掉已存在的笔记
-      setPosts(prev => {
-        const existingIds = new Set(prev.map(p => p._id))
-        const uniqueNewPosts = newPosts.filter(
-          (p: IPost) => !existingIds.has(p._id)
-        )
-        return [...prev, ...uniqueNewPosts]
-      })
-
-      // 更新分页状态
-      setNextCursor(data.pagination?.nextCursor ?? null)
-      setHasNextPage(Boolean(data.pagination?.hasNextPage))
-    } catch (err) {
-      console.error('Failed to load related posts:', err)
-    } finally {
-      setIsLoadingMore(false)
-    }
-  }, [
-    disableRecommendations,
-    isLoadingMore,
-    initialPost._id,
-    hasNextPage,
-    nextCursor,
-  ])
+  const hasInitiatedLoad = useRef(false)
 
   // 在初始笔记加载完成后，加载相关推荐
   useEffect(() => {
-    if (!disableRecommendations && shouldLoadRelated && !loading) {
+    if (!disableRecommendations && !hasInitiatedLoad.current) {
       loadMoreRelatedPosts()
-      setShouldLoadRelated(false)
+      hasInitiatedLoad.current = true
     }
-  }, [disableRecommendations, shouldLoadRelated, loading, loadMoreRelatedPosts])
+  }, [disableRecommendations, loadMoreRelatedPosts])
 
   /**
    * 监听滚动到底部
@@ -119,7 +50,7 @@ export default function PostDetailClient({
 
     const observer = new IntersectionObserver(
       entries => {
-        if (entries[0].isIntersecting && !loading && !error && hasNextPage) {
+        if (entries[0].isIntersecting && hasNextPage) {
           loadMoreRelatedPosts()
         }
       },
@@ -131,34 +62,7 @@ export default function PostDetailClient({
     }
 
     return () => observer.disconnect()
-  }, [
-    disableRecommendations,
-    loadMoreRelatedPosts,
-    loading,
-    error,
-    hasNextPage,
-  ])
-
-  // 加载中
-  if (loading) {
-    return (
-      <div className="flex h-dvh items-center justify-center">
-        <Spinner />
-      </div>
-    )
-  }
-
-  // 加载失败
-  if (error) {
-    return (
-      <div className="flex h-dvh flex-col items-center justify-center gap-4">
-        <p className="text-destructive">{error || 'Post not found'}</p>
-        <Button variant="outline" onClick={() => router.back()}>
-          返回
-        </Button>
-      </div>
-    )
-  }
+  }, [disableRecommendations, loadMoreRelatedPosts, hasNextPage])
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

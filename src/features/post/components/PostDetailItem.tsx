@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   Share,
@@ -44,7 +44,7 @@ interface PostDetailItemProps {
   defaultCommentsOpen?: boolean
 }
 
-export function PostDetailItem({
+export const PostDetailItem = memo(function PostDetailItem({
   post,
   defaultCommentsOpen = false,
 }: PostDetailItemProps) {
@@ -420,4 +420,4 @@ export function PostDetailItem({
       )}
     </div>
   )
-}
+})
