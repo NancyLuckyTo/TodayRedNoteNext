@@ -112,6 +112,7 @@ export default function PostEditorClient({
     onSuccess: () => {
       resetImages()
       setEditorContent('')
+      router.push('/profile')
     },
   })
 
@@ -223,11 +224,26 @@ export default function PostEditorClient({
 
   const handleCancel = useCallback(async () => {
     if (!isEditMode) {
+      if (!isDirty) {
+        router.back()
+        return
+      }
+
       const content = {
         body: editorContent,
         topic: form.getValues('topic'),
         images: newImages,
         existingImages,
+      }
+
+      // 仅有话题（正文/图片为空）时，不保存草稿，避免误清空已有草稿
+      const isBodyAndImagesEmpty = isEditorContentEmpty({
+        ...content,
+        topic: '',
+      })
+      if (isBodyAndImagesEmpty) {
+        router.back()
+        return
       }
 
       if (!isEditorContentEmpty(content)) {
@@ -247,6 +263,7 @@ export default function PostEditorClient({
     saveDraftNow,
     clearDraft,
     router,
+    isDirty,
   ])
 
   const onSubmit = (data: PostFormData) => {

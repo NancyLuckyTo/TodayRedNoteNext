@@ -368,8 +368,11 @@ export const PostDetailItem = memo(function PostDetailItem({
                 <div key={comment._id} className="flex gap-2">
                   <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0">
                     <Image
-                      src={author.avatar || getDefaultAvatar(author.username)}
-                      alt={author.username}
+                      src={
+                        comment.author.avatar ||
+                        getDefaultAvatar(comment.author.username)
+                      }
+                      alt={comment.author.username}
                       fill
                       className="object-cover"
                       sizes="16px"

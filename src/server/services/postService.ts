@@ -176,7 +176,7 @@ class PostService {
 
       if (!post) return null
 
-      console.log('TODO currentUserId', currentUserId)
+      // console.log('TODO currentUserId', currentUserId)
 
       return formatPostWithImages(post, IMAGE_QUALITY.PREVIEW, false) as IPost
     } catch (error) {

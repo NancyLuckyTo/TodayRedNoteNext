@@ -28,12 +28,12 @@ dist-ssr
 
 .env
 
-/server/src/data
-/server/src/scripts
-
 # Next.js
 /.next
 /out
 /.vercel
 *.tsbuildinfo
 next-env.d.ts
+
+src/scripts
+src/data

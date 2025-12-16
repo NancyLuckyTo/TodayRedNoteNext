@@ -19,9 +19,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
   }
 
+  const titleText = (post.bodyPreview || '').trim()
+  const descText = (post.bodyPreview || '').trim()
+
   return {
-    title: post.body?.slice(0, 20) || '笔记详情',
-    description: post.bodyPreview || post.body?.slice(0, 100),
+    title: titleText.slice(0, 20) || '笔记详情',
+    description: descText.slice(0, 100) || undefined,
   }
 }
 

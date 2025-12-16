@@ -107,7 +107,14 @@ export const useDraftAutoSave = ({
     if (!contentRef.current || !enabled) return
 
     const { body, topic, images, existingImages } = contentRef.current
-    const currentIsDirty = isDirty
+    if (
+      isBodyEmpty(body) &&
+      images.length === 0 &&
+      existingImages.length === 0
+    ) {
+      setIsDirty(false)
+      return
+    }
 
     // 内容为空时不保存
     if (isEditorContentEmpty(contentRef.current)) return
@@ -165,7 +172,7 @@ export const useDraftAutoSave = ({
     } finally {
       setIsSaving(false)
     }
-  }, [draft, enabled, isDirty, onImagesUploaded, onSaveSuccess, onSaveError])
+  }, [draft, enabled, onImagesUploaded, onSaveSuccess, onSaveError])
 
   // 定时自动保存
   useEffect(() => {
